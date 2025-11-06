@@ -568,7 +568,7 @@ function startNewGame() {
     } else if (selectedGameMode === 'zombie') {
         // Zombie mode: Regular chess with piece conversion on capture
         initializeZombieMode();
-        document.getElementById('turn-indicator').textContent = 'Convert or Be Converted!';
+        document.getElementById('turn-indicator').textContent = '🧟 Convert or Be Converted! 🧟';
     } else if (selectedGameMode === 'shooter') {
         // Shooter mode: Chess piece shooter game
         initializeShooterMode();
@@ -1550,8 +1550,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.className = 'haunted';
             selectedTheme = 'haunted';
         } else if (selectedGameMode === 'zombie') {
-            document.body.className = 'haunted';
-            selectedTheme = 'haunted';
+            document.body.className = 'zombie';
+            selectedTheme = 'zombie';
         } else if (selectedGameMode === 'shooter') {
             startNewGame();
             return;
