@@ -1510,7 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timeSection.style.display = tempGameMode.shouldShowTimeControl() ? 'block' : 'none';
         }
         if (aiSection) {
-            aiSection.style.display = ['classic', 'zombie'].includes(selectedGameType) ? 'block' : 'none';
+            aiSection.style.display = ['classic', 'zombie', 'survival'].includes(selectedGameType) ? 'block' : 'none';
         }
     }
 

@@ -162,4 +162,3 @@ Respond with only the move in format "from to" (e.g., "e2 e4"). Choose the singl
     }
 }
 
-module.exports = AI;

@@ -104,37 +104,7 @@ class ZombieChessMode extends GameMode {
     }
 }
 
-class SurvivalMode extends GameMode {
-    initialize() {
-        survivalMode = true;
-        gameBoard = [
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '♔', '', '', '']
-        ];
-        aiPieces = ['♛', '♜', '♜', '♝', '♝', '♞', '♞'];
-        placeSurvivalPieces();
-        document.getElementById('turn-indicator').textContent = 'Survive the Hunt!';
-        setTimeout(moveAIPieces, 2000);
-    }
 
-    handleSquareClick(square) {
-        handleSurvivalSquareClick(square);
-    }
-
-    shouldShowTimeControl() {
-        return false;
-    }
-
-    shouldShowStartingPosition() {
-        return false;
-    }
-}
 
 class ShooterMode extends GameMode {
     initialize() {
