@@ -24,9 +24,9 @@ let increment = 30; // 30 seconds increment (Classical default)
 let selectedGameMode = '2player';
 let selectedTimeControl = 'classical';
 let aiPlayer = null;
-let chessInterface = null;
+let chessDriver = null;
 let whiteAI = null;
-let whiteChessInterface = null;
+let whiteChessDriver = null;
 let selectedTheme = 'classic';
 let selectedScenario = 'standard';
 let survivalMode = false;
@@ -610,12 +610,12 @@ function startNewGame() {
 
     // Initialize AI if needed
     if (selectedGameMode === 'ai') {
-        chessInterface = new ChessInterface('black');
+        chessDriver = new ChessDriver('black');
         aiPlayer = new AI();
     } else if (selectedGameMode === 'ai-vs-ai') {
-        chessInterface = new ChessInterface('black');
+        chessDriver = new ChessDriver('black');
         aiPlayer = new AI();
-        whiteChessInterface = new ChessInterface('white');
+        whiteChessDriver = new ChessDriver('white');
         whiteAI = new AI();
 
         // Start AI vs AI game
@@ -1438,15 +1438,15 @@ async function makeAIMove() {
         let currentAI, currentInterface;
 
         if (currentPlayer === 'white') {
-            if (!whiteChessInterface) whiteChessInterface = new ChessInterface('white');
+            if (!whiteChessDriver) whiteChessDriver = new ChessDriver('white');
             if (!whiteAI) whiteAI = new AI();
             currentAI = whiteAI;
-            currentInterface = whiteChessInterface;
+            currentInterface = whiteChessDriver;
         } else {
-            if (!chessInterface) chessInterface = new ChessInterface('black');
+            if (!chessDriver) chessDriver = new ChessDriver('black');
             if (!aiPlayer) aiPlayer = new AI();
             currentAI = aiPlayer;
-            currentInterface = chessInterface;
+            currentInterface = chessDriver;
         }
 
         await currentAI.promptTurn(currentInterface);
@@ -1500,7 +1500,7 @@ async function makeAIMove() {
 
 function initializeAI() {
     if (selectedGameMode === 'ai') {
-        chessInterface = new ChessInterface('black');
+        chessDriver = new ChessDriver('black');
         aiPlayer = new AI();
     }
 }

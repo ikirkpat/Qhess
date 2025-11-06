@@ -1,19 +1,19 @@
 class AI {
     /**
      * Analyze the board and make a move using Amazon Q's strategic analysis
-     * @param {ChessInterface} chessInterface - The chess interface instance
+     * @param {ChessDriver} chessDriver - The chess driver instance
      */
-    async promptTurn(chessInterface) {
-        const boardState = chessInterface.getBoardState();
-        const availableMoves = this.getAvailableMoves(boardState, chessInterface.color);
+    async promptTurn(chessDriver) {
+        const boardState = chessDriver.getBoardState();
+        const availableMoves = this.getAvailableMoves(boardState, chessDriver.color);
         
         if (availableMoves.length === 0) {
             throw new Error('No valid moves available');
         }
         
         // Use Amazon Q to analyze the position and select the best move
-        const selectedMove = await this.selectBestMove(boardState, availableMoves, chessInterface.color);
-        chessInterface.movePiece(selectedMove.from, selectedMove.to);
+        const selectedMove = await this.selectBestMove(boardState, availableMoves, chessDriver.color);
+        chessDriver.movePiece(selectedMove.from, selectedMove.to);
     }
 
     async selectBestMove(boardState, availableMoves, color) {

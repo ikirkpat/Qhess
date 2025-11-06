@@ -1,4 +1,4 @@
-class ChessInterface {
+class ChessDriver {
     constructor(color) {
         this.color = color; // 'white' or 'black'
     }
@@ -62,4 +62,4 @@ class ChessInterface {
     }
 }
 
-module.exports = ChessInterface;
+module.exports = ChessDriver;
