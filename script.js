@@ -202,13 +202,57 @@ function isInCheck(color) {
         for (let col = 0; col < 8; col++) {
             const piece = gameBoard[row][col];
             if (piece && ((opponent === 'white' && isWhitePiece(piece)) || (opponent === 'black' && isBlackPiece(piece)))) {
-                if (isValidMove(row, col, king.row, king.col)) {
+                if (canAttackSquare(row, col, king.row, king.col)) {
                     return true;
                 }
             }
         }
     }
     return false;
+}
+
+function canAttackSquare(fromRow, fromCol, toRow, toCol) {
+    const piece = gameBoard[fromRow][fromCol];
+    const target = gameBoard[toRow][toCol];
+    
+    // Can't capture own piece (but for attack checking, we ignore this for the king)
+    if (target && ((isWhitePiece(piece) && isWhitePiece(target)) || (isBlackPiece(piece) && isBlackPiece(target)))) {
+        // Allow attacking the king for check detection
+        const targetIsKing = target === '♔' || target === '♚';
+        if (!targetIsKing) {
+            return false;
+        }
+    }
+    
+    const rowDiff = Math.abs(toRow - fromRow);
+    const colDiff = Math.abs(toCol - fromCol);
+    
+    // Basic movement rules (same as in getInvalidMoveReason but without check validation)
+    switch(piece) {
+        case '♙': // White pawn
+            return colDiff === 1 && toRow === fromRow - 1;
+            
+        case '♟': // Black pawn
+            return colDiff === 1 && toRow === fromRow + 1;
+            
+        case '♖': case '♜': // Rook
+            return (rowDiff === 0 || colDiff === 0) && isPathClear(fromRow, fromCol, toRow, toCol);
+            
+        case '♗': case '♝': // Bishop
+            return rowDiff === colDiff && isPathClear(fromRow, fromCol, toRow, toCol);
+            
+        case '♕': case '♛': // Queen
+            return (rowDiff === 0 || colDiff === 0 || rowDiff === colDiff) && isPathClear(fromRow, fromCol, toRow, toCol);
+            
+        case '♔': case '♚': // King
+            return rowDiff <= 1 && colDiff <= 1;
+            
+        case '♘': case '♞': // Knight
+            return (rowDiff === 2 && colDiff === 1) || (rowDiff === 1 && colDiff === 2);
+            
+        default:
+            return false;
+    }
 }
 
 function hasLegalMoves(color) {
