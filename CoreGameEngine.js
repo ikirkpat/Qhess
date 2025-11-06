@@ -1,4 +1,4 @@
-class ClassicGameMode {
+class CoreGameEngine {
     constructor() {
         this.chessDriver = null;
         this.whiteAI = null;
