@@ -28,8 +28,53 @@ let chessInterface = null;
 let whiteAI = null;
 let whiteChessInterface = null;
 let selectedTheme = 'classic';
+let selectedScenario = 'standard';
 let survivalMode = false;
 let aiPieces = [];
+let pendingPromotion = null;
+
+const scenarios = {
+    standard: [
+        ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
+        ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
+        ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
+    ],
+    endgame: [
+        ['', '', '', '', '♚', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '♕', '', '', '', ''],
+        ['', '', '', '', '♔', '', '', '']
+    ],
+    promotion: [
+        ['', '', '', '', '♚', '', '', ''],
+        ['', '', '♙', '', '', '♟', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '♔', '', '', '']
+    ],
+    castling: [
+        ['♜', '', '', '', '♚', '', '', '♜'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['♖', '', '', '', '♔', '', '', '♖']
+    ]
+};
 let pieceMoved = {
     whiteKing: false,
     blackKing: false,
@@ -53,6 +98,61 @@ function isWhitePiece(piece) {
 function isBlackPiece(piece) {
     return blackPieces.includes(piece);
 }
+
+function isPawnPromotion(piece, toRow) {
+    return (piece === '♙' && toRow === 0) || (piece === '♟' && toRow === 7);
+}
+
+function showPromotionModal(isWhite) {
+    const choice = prompt('Choose promotion piece:\n1 - Queen\n2 - Rook\n3 - Bishop\n4 - Knight', '1');
+    
+    let promotedPiece;
+    switch (choice) {
+        case '2': promotedPiece = isWhite ? '♖' : '♜'; break;
+        case '3': promotedPiece = isWhite ? '♗' : '♝'; break;
+        case '4': promotedPiece = isWhite ? '♘' : '♞'; break;
+        default: promotedPiece = isWhite ? '♕' : '♛'; break;
+    }
+    
+    if (pendingPromotion) {
+        gameBoard[pendingPromotion.toRow][pendingPromotion.toCol] = promotedPiece;
+        gameBoard[pendingPromotion.fromRow][pendingPromotion.fromCol] = '';
+        pendingPromotion = null;
+        updateBoard();
+        
+        // Continue game flow
+        if (!survivalMode) {
+            const opponent = currentPlayer === 'white' ? 'black' : 'white';
+            if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
+                gameOver = true;
+                const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+                document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
+                createConfetti();
+            } else {
+                addIncrement();
+                currentPlayer = opponent;
+                if (!checkGameEnd()) {
+                    updateTurnIndicator();
+                    updateTimers();
+                    clearMessage();
+                    
+                    if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                        if (!gameOver) setTimeout(() => makeAIMove(), 1000);
+                    }
+                }
+            }
+        }
+    }
+}
+
+function hidePromotionModal() {
+    // Not needed for prompt-based approach
+}
+
+// Expose functions globally for AI
+window.isWhitePiece = isWhitePiece;
+window.isBlackPiece = isBlackPiece;
+window.isValidMove = isValidMove;
 
 function getInvalidMoveReason(fromRow, fromCol, toRow, toCol) {
     const piece = gameBoard[fromRow][fromCol];
@@ -470,17 +570,8 @@ function startNewGame() {
         initializeZombieMode();
         document.getElementById('turn-indicator').textContent = 'Convert or Be Converted!';
     } else {
-        // Normal chess game
-        gameBoard = [
-            ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
-            ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
-            ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
-        ];
+        // Use selected scenario
+        gameBoard = scenarios[selectedScenario].map(row => [...row]);
     }
 
     if (selectedSquare) {
@@ -1039,6 +1130,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.setup-btn[data-time]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedTimeControl = btn.dataset.time;
+        });
+    });
+
+    document.querySelectorAll('.setup-btn[data-scenario]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.setup-btn[data-scenario]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedScenario = btn.dataset.scenario;
         });
     });
 
