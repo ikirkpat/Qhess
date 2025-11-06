@@ -336,13 +336,57 @@ function isInCheck(color) {
         for (let col = 0; col < 8; col++) {
             const piece = gameBoard[row][col];
             if (piece && ((opponent === 'white' && isWhitePiece(piece)) || (opponent === 'black' && isBlackPiece(piece)))) {
-                if (isValidMove(row, col, king.row, king.col)) {
+                if (canAttackSquare(row, col, king.row, king.col)) {
                     return true;
                 }
             }
         }
     }
     return false;
+}
+
+function canAttackSquare(fromRow, fromCol, toRow, toCol) {
+    const piece = gameBoard[fromRow][fromCol];
+    const target = gameBoard[toRow][toCol];
+
+    // Can't capture own piece (but for attack checking, we ignore this for the king)
+    if (target && ((isWhitePiece(piece) && isWhitePiece(target)) || (isBlackPiece(piece) && isBlackPiece(target)))) {
+        // Allow attacking the king for check detection
+        const targetIsKing = target === '♔' || target === '♚';
+        if (!targetIsKing) {
+            return false;
+        }
+    }
+
+    const rowDiff = Math.abs(toRow - fromRow);
+    const colDiff = Math.abs(toCol - fromCol);
+
+    // Basic movement rules (same as in getInvalidMoveReason but without check validation)
+    switch (piece) {
+        case '♙': // White pawn
+            return colDiff === 1 && toRow === fromRow - 1;
+
+        case '♟': // Black pawn
+            return colDiff === 1 && toRow === fromRow + 1;
+
+        case '♖': case '♜': // Rook
+            return (rowDiff === 0 || colDiff === 0) && isPathClear(fromRow, fromCol, toRow, toCol);
+
+        case '♗': case '♝': // Bishop
+            return rowDiff === colDiff && isPathClear(fromRow, fromCol, toRow, toCol);
+
+        case '♕': case '♛': // Queen
+            return (rowDiff === 0 || colDiff === 0 || rowDiff === colDiff) && isPathClear(fromRow, fromCol, toRow, toCol);
+
+        case '♔': case '♚': // King
+            return rowDiff <= 1 && colDiff <= 1;
+
+        case '♘': case '♞': // Knight
+            return (rowDiff === 2 && colDiff === 1) || (rowDiff === 1 && colDiff === 2);
+
+        default:
+            return false;
+    }
 }
 
 function hasLegalMoves(color) {
@@ -403,22 +447,22 @@ function startNewGame() {
     if (survivalMode) {
         // Survival mode: Player king vs AI pieces
         gameBoard = [
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','♔','','','']
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '♔', '', '', '']
         ];
-        
+
         // Add AI pieces randomly
         aiPieces = ['♛', '♜', '♜', '♝', '♝', '♞', '♞'];
         placeSurvivalPieces();
-        
+
         document.getElementById('turn-indicator').textContent = 'Survive the Hunt!';
-        
+
         // Start AI movement
         setTimeout(moveAIPieces, 2000);
     } else {
@@ -482,17 +526,17 @@ function startNewGame() {
 
 function placeSurvivalPieces() {
     const positions = [];
-    
+
     // Generate random positions for AI pieces
     while (positions.length < aiPieces.length) {
         const row = Math.floor(Math.random() * 6); // Top 6 rows
         const col = Math.floor(Math.random() * 8);
-        
+
         if (gameBoard[row][col] === '' && !positions.some(p => p.row === row && p.col === col)) {
-            positions.push({row, col});
+            positions.push({ row, col });
         }
     }
-    
+
     // Place AI pieces
     aiPieces.forEach((piece, index) => {
         const pos = positions[index];
@@ -502,13 +546,13 @@ function placeSurvivalPieces() {
 
 function moveAIPieces() {
     if (gameOver || !survivalMode) return;
-    
+
     // Find king position
     const kingPos = findKing('white');
     if (!kingPos) return;
-    
+
     let pieceMoved = false;
-    
+
     // Move one AI piece closer to the king (ignoring chess rules)
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
@@ -519,18 +563,18 @@ function moveAIPieces() {
                 for (let deltaRow = -1; deltaRow <= 1; deltaRow++) {
                     for (let deltaCol = -1; deltaCol <= 1; deltaCol++) {
                         if (deltaRow === 0 && deltaCol === 0) continue; // Skip current position
-                        
+
                         const toRow = row + deltaRow;
                         const toCol = col + deltaCol;
-                        
+
                         if (toRow >= 0 && toRow < 8 && toCol >= 0 && toCol < 8) {
                             if (gameBoard[toRow][toCol] === '' || (toRow === kingPos.row && toCol === kingPos.col)) {
-                                possibleMoves.push({row: toRow, col: toCol});
+                                possibleMoves.push({ row: toRow, col: toCol });
                             }
                         }
                     }
                 }
-                
+
                 if (possibleMoves.length > 0) {
                     // Choose move that gets closest to king
                     const bestMove = possibleMoves.reduce((best, move) => {
@@ -538,12 +582,12 @@ function moveAIPieces() {
                         const distToMove = Math.abs(move.row - kingPos.row) + Math.abs(move.col - kingPos.col);
                         return distToMove < distToBest ? move : best;
                     });
-                    
+
                     // Move AI piece
                     gameBoard[bestMove.row][bestMove.col] = piece;
                     gameBoard[row][col] = '';
                     pieceMoved = true;
-                    
+
                     // Check if AI piece captured the king (game over)
                     if (bestMove.row === kingPos.row && bestMove.col === kingPos.col) {
                         updateBoard(); // Show the capture first
@@ -554,16 +598,16 @@ function moveAIPieces() {
             }
         }
     }
-    
+
     updateBoard();
-    
+
     // Check if king was captured (no longer on board)
     const newKingPos = findKing('white');
     if (!newKingPos) {
         // King was captured, game over already triggered
         return;
     }
-    
+
     setTimeout(moveAIPieces, 800); // Move every 0.8 seconds (faster)
 }
 
@@ -572,7 +616,7 @@ function getValidMovesForPiece(row, col) {
     for (let toRow = 0; toRow < 8; toRow++) {
         for (let toCol = 0; toCol < 8; toCol++) {
             if (isValidMove(row, col, toRow, toCol)) {
-                moves.push({row: toRow, col: toCol});
+                moves.push({ row: toRow, col: toCol });
             }
         }
     }
@@ -581,14 +625,14 @@ function getValidMovesForPiece(row, col) {
 
 function showGameOver() {
     gameOver = true;
-    
+
     const gameOverScreen = document.createElement('div');
     gameOverScreen.className = 'game-over-screen';
-    
+
     const gameOverText = document.createElement('div');
     gameOverText.className = 'game-over-text';
     gameOverText.textContent = 'GAME OVER';
-    
+
     // Add blood splatters
     for (let i = 0; i < 5; i++) {
         const splatter = document.createElement('div');
@@ -598,7 +642,7 @@ function showGameOver() {
         splatter.style.animationDelay = (i * 0.2) + 's';
         gameOverScreen.appendChild(splatter);
     }
-    
+
     const resetButton = document.createElement('button');
     resetButton.textContent = 'Try Again';
     resetButton.className = 'reset-btn';
@@ -606,7 +650,7 @@ function showGameOver() {
         document.body.removeChild(gameOverScreen);
         resetGame();
     };
-    
+
     gameOverScreen.appendChild(gameOverText);
     gameOverScreen.appendChild(resetButton);
     document.body.appendChild(gameOverScreen);
@@ -716,7 +760,7 @@ function handleSquareClick(square) {
                 clearHighlights();
                 return;
             }
-            
+
             // Track piece movement for castling
             trackPieceMovement(fromRow, fromCol, piece);
 
@@ -841,7 +885,7 @@ function createChessBoard() {
     }
 }
 
-function makeAIMove() {
+async function makeAIMove() {
     if (gameOver) return;
 
     try {
@@ -860,6 +904,8 @@ function makeAIMove() {
         }
 
         currentAI.promptTurn(currentInterface);
+
+        await currentAI.promptTurn(currentInterface);
         updateBoard();
         updateCapturedPieces();
 
