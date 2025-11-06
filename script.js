@@ -24,9 +24,7 @@ let increment = 30; // 30 seconds increment (Classical default)
 let selectedGameMode = '2player';
 let selectedTimeControl = 'classical';
 let aiPlayer = null;
-let chessDriver = null;
-let whiteAI = null;
-let whiteChessDriver = null;
+let classicGameMode = new ClassicGameMode();
 let selectedTheme = 'classic';
 let selectedScenario = 'standard';
 let survivalMode = false;
@@ -608,18 +606,9 @@ function startNewGame() {
     updateTimers();
     if (!survivalMode) startTimer();
 
-    // Initialize AI if needed
-    if (selectedGameMode === 'ai') {
-        chessDriver = new ChessDriver('black');
-        aiPlayer = new AI();
-    } else if (selectedGameMode === 'ai-vs-ai') {
-        chessDriver = new ChessDriver('black');
-        aiPlayer = new AI();
-        whiteChessDriver = new ChessDriver('white');
-        whiteAI = new AI();
-
-        // Start AI vs AI game
-        setTimeout(() => makeAIMove(), 1000);
+    // Initialize classic game modes
+    if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
+        classicGameMode.initializeGame(selectedGameMode);
     }
 }
 
@@ -890,6 +879,13 @@ function checkGameEnd() {
 }
 
 function handleSquareClick(square) {
+    // Delegate to ClassicGame for standard modes
+    if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
+        classicGameMode.handleSquareClick(square);
+        return;
+    }
+
+    // Handle special modes (survival, zombie, etc.)
     if (gameOver) return;
 
     const row = parseInt(square.dataset.row);
@@ -901,21 +897,19 @@ function handleSquareClick(square) {
         const fromCol = parseInt(selectedSquare.dataset.col);
 
         let invalidReason = null;
-        if (!survivalMode) {
-            invalidReason = getInvalidMoveReason(fromRow, fromCol, row, col);
-        } else {
-            // In survival mode, king can only move one square
+        if (survivalMode) {
             const rowDiff = Math.abs(row - fromRow);
             const colDiff = Math.abs(col - fromCol);
             if (rowDiff > 1 || colDiff > 1) {
                 invalidReason = "King can only move one square";
             }
+        } else {
+            invalidReason = getInvalidMoveReason(fromRow, fromCol, row, col);
         }
 
         if (!invalidReason) {
             const piece = gameBoard[fromRow][fromCol];
 
-            // In survival mode, only allow king moves
             if (survivalMode && piece !== '♔') {
                 showMessage('You can only move the king in survival mode!');
                 selectedSquare.classList.remove('selected');
@@ -924,15 +918,12 @@ function handleSquareClick(square) {
                 return;
             }
 
-            // Handle zombie mode captures before making the move
             if (selectedGameMode === 'zombie' && gameBoard[row][col]) {
                 handleZombieCapture(fromRow, fromCol, row, col);
             }
 
-            // Track piece movement for castling
             trackPieceMovement(fromRow, fromCol, piece);
 
-            // Capture piece if present
             if (gameBoard[row][col]) {
                 if (isWhitePiece(gameBoard[row][col])) {
                     capturedWhite.push(gameBoard[row][col]);
@@ -942,52 +933,12 @@ function handleSquareClick(square) {
                 updateCapturedPieces();
             }
 
-            // Check if this is a castling move
-            if (isCastlingMove(fromRow, fromCol, row, col)) {
-                performCastling(fromRow, fromCol, row, col);
-                updateBoard();
-            } else {
-                // Check for pawn promotion
-                if (isPawnPromotion(piece, row)) {
-                    pendingPromotion = { fromRow, fromCol, toRow: row, toCol: col, piece };
-                    showPromotionModal(isWhitePiece(piece));
-                    return;
-                } else {
-                    gameBoard[row][col] = piece;
-                    gameBoard[fromRow][fromCol] = '';
-                    updateBoard();
-                }
-            }
+            gameBoard[row][col] = piece;
+            gameBoard[fromRow][fromCol] = '';
+            updateBoard();
 
-            // In survival mode, don't switch turns - player always moves
             if (survivalMode) {
-                // Just update the board, no turn switching
                 updateBoard();
-            } else {
-                // Check for checkmate BEFORE switching turns
-                const opponent = currentPlayer === 'white' ? 'black' : 'white';
-                if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
-                    gameOver = true;
-                    const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
-                    document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
-                    createConfetti();
-                } else {
-                    addIncrement(); // Add increment after move
-                    currentPlayer = opponent;
-                    if (!checkGameEnd()) {
-                        updateTurnIndicator();
-                        updateTimers();
-                        clearMessage();
-
-                        // AI move if it's AI's turn
-                        if ((selectedGameMode === 'ai' && currentPlayer === 'black') ||
-                            (selectedGameMode === 'ai-vs-ai')) {
-                            if (!gameOver) {
-                                setTimeout(() => makeAIMove(), 1000);
-                            }
-                        }
-                    }
-                }
             }
         } else {
             if (!survivalMode) {
@@ -1431,79 +1382,7 @@ function createChessBoard() {
     }
 }
 
-async function makeAIMove() {
-    if (gameOver) return;
 
-    try {
-        let currentAI, currentInterface;
-
-        if (currentPlayer === 'white') {
-            if (!whiteChessDriver) whiteChessDriver = new ChessDriver('white');
-            if (!whiteAI) whiteAI = new AI();
-            currentAI = whiteAI;
-            currentInterface = whiteChessDriver;
-        } else {
-            if (!chessDriver) chessDriver = new ChessDriver('black');
-            if (!aiPlayer) aiPlayer = new AI();
-            currentAI = aiPlayer;
-            currentInterface = chessDriver;
-        }
-
-        await currentAI.promptTurn(currentInterface);
-        
-        // Check if AI move resulted in pawn promotion
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                const piece = gameBoard[row][col];
-                if (isPawnPromotion(piece, row)) {
-                    const choice = currentAI.choosePromotionPiece();
-                    const isWhite = isWhitePiece(piece);
-                    let promotedPiece;
-                    switch (choice) {
-                        case 'rook': promotedPiece = isWhite ? '♖' : '♜'; break;
-                        case 'bishop': promotedPiece = isWhite ? '♗' : '♝'; break;
-                        case 'knight': promotedPiece = isWhite ? '♘' : '♞'; break;
-                        default: promotedPiece = isWhite ? '♕' : '♛'; break;
-                    }
-                    gameBoard[row][col] = promotedPiece;
-                }
-            }
-        }
-        
-        updateBoard();
-        updateCapturedPieces();
-
-        // Check for game end after AI move
-        const opponent = currentPlayer === 'white' ? 'black' : 'white';
-        if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
-            gameOver = true;
-            const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
-            document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
-            createConfetti();
-        } else {
-            addIncrement();
-            currentPlayer = opponent;
-            if (!checkGameEnd()) {
-                updateTurnIndicator();
-                updateTimers();
-
-                // Continue AI vs AI
-                if (selectedGameMode === 'ai-vs-ai' && !gameOver) {
-                    setTimeout(() => makeAIMove(), 1000);
-                }
-            }
-        }
-    } catch (error) {
-        console.error('AI move error:', error);
-    }
-}
-
-function initializeAI() {
-    if (selectedGameMode === 'ai') {
-        chessDriver = new ChessDriver('black');
-        aiPlayer = new AI();
-    }
-}
 
 document.addEventListener('DOMContentLoaded', () => {
     // Setup screen event listeners
