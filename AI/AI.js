@@ -55,7 +55,13 @@ Respond with only the move in format "from to" (e.g., "e2 e4"). Choose the singl
             let score = 0;
             const fromCoords = this.algebraicToCoords(move.from);
             const toCoords = this.algebraicToCoords(move.to);
+            const piece = boardState[fromCoords.row][fromCoords.col];
             const targetPiece = boardState[toCoords.row][toCoords.col];
+
+            // Highest priority: Pawn promotion
+            if ((piece === '♙' && toCoords.row === 0) || (piece === '♟' && toCoords.row === 7)) {
+                score += 50; // Very high priority for promotion
+            }
 
             // Prioritize captures
             if (targetPiece) {
