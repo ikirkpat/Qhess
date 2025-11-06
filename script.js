@@ -604,8 +604,23 @@ function moveAIPieces() {
     // Check if king was captured (no longer on board)
     const newKingPos = findKing('white');
     if (!newKingPos) {
-        // King was captured, game over already triggered
+        // King was captured, show game over
+        setTimeout(() => showGameOver(), 500);
         return;
+    }
+    
+    // Also check if any AI piece is on the same square as the king
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = gameBoard[row][col];
+            if (piece && isBlackPiece(piece) && row === newKingPos.row && col === newKingPos.col) {
+                // AI piece captured the king
+                gameBoard[row][col] = piece; // Keep the AI piece
+                updateBoard();
+                setTimeout(() => showGameOver(), 500);
+                return;
+            }
+        }
     }
 
     setTimeout(moveAIPieces, 800); // Move every 0.8 seconds (faster)
@@ -748,7 +763,18 @@ function handleSquareClick(square) {
         const fromRow = parseInt(selectedSquare.dataset.row);
         const fromCol = parseInt(selectedSquare.dataset.col);
 
-        const invalidReason = getInvalidMoveReason(fromRow, fromCol, row, col);
+        let invalidReason = null;
+        if (!survivalMode) {
+            invalidReason = getInvalidMoveReason(fromRow, fromCol, row, col);
+        } else {
+            // In survival mode, king can only move one square
+            const rowDiff = Math.abs(row - fromRow);
+            const colDiff = Math.abs(col - fromCol);
+            if (rowDiff > 1 || colDiff > 1) {
+                invalidReason = "King can only move one square";
+            }
+        }
+        
         if (!invalidReason) {
             const piece = gameBoard[fromRow][fromCol];
 
@@ -815,7 +841,9 @@ function handleSquareClick(square) {
                 }
             }
         } else {
-            showMessage(invalidReason);
+            if (!survivalMode) {
+                showMessage(invalidReason);
+            }
         }
 
         selectedSquare.classList.remove('selected');
@@ -825,7 +853,9 @@ function handleSquareClick(square) {
         if (selectedSquare) selectedSquare.classList.remove('selected');
         selectedSquare = square;
         square.classList.add('selected');
-        showPossibleMoves(row, col);
+        if (!survivalMode) {
+            showPossibleMoves(row, col);
+        }
     }
 }
 
