@@ -5,7 +5,7 @@ class AI {
      */
     promptTurn(chessInterface) {
         const boardState = chessInterface.getBoardState();
-        const availableMoves = this.getAvailableMoves(boardState);
+        const availableMoves = this.getAvailableMoves(boardState, chessInterface.color);
         
         if (availableMoves.length === 0) {
             throw new Error('No valid moves available');
@@ -16,13 +16,13 @@ class AI {
         chessInterface.movePiece(selectedMove.from, selectedMove.to);
     }
 
-    getAvailableMoves(boardState) {
+    getAvailableMoves(boardState, color) {
         const moves = [];
         
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = boardState[row][col];
-                if (piece && isBlackPiece(piece)) {
+                if (piece && ((color === 'white' && isWhitePiece(piece)) || (color === 'black' && isBlackPiece(piece)))) {
                     const fromSquare = this.coordsToAlgebraic(row, col);
                     const validTargets = this.getValidTargetsForPiece(row, col, boardState);
                     validTargets.forEach(target => {

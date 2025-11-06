@@ -25,6 +25,8 @@ let selectedGameMode = '2player';
 let selectedTimeControl = 'classical';
 let aiPlayer = null;
 let chessInterface = null;
+let whiteAI = null;
+let whiteChessInterface = null;
 
 const timeControls = {
     classical: { time: 5400, increment: 30 }, // 90 minutes + 30 seconds
@@ -301,6 +303,14 @@ function startNewGame() {
     if (selectedGameMode === 'ai') {
         chessInterface = new ChessInterface('black');
         aiPlayer = new AI();
+    } else if (selectedGameMode === 'ai-vs-ai') {
+        chessInterface = new ChessInterface('black');
+        aiPlayer = new AI();
+        whiteChessInterface = new ChessInterface('white');
+        whiteAI = new AI();
+        
+        // Start AI vs AI game
+        setTimeout(() => makeAIMove(), 1000);
     }
 }
 
@@ -429,8 +439,11 @@ function handleSquareClick(square) {
                     clearMessage();
                     
                     // AI move if it's AI's turn
-                    if (selectedGameMode === 'ai' && currentPlayer === 'black' && !gameOver) {
-                        setTimeout(() => makeAIMove(), 1000);
+                    if ((selectedGameMode === 'ai' && currentPlayer === 'black') || 
+                        (selectedGameMode === 'ai-vs-ai')) {
+                        if (!gameOver) {
+                            setTimeout(() => makeAIMove(), 1000);
+                        }
                     }
                 }
             }
@@ -506,32 +519,45 @@ function createChessBoard() {
 }
 
 function makeAIMove() {
-    if (gameOver || currentPlayer !== 'black') return;
+    if (gameOver) return;
     
     try {
-        if (!chessInterface) {
-            chessInterface = new ChessInterface('black');
-        }
-        if (!aiPlayer) {
-            aiPlayer = new AI();
+        let currentAI, currentInterface;
+        
+        if (currentPlayer === 'white') {
+            if (!whiteChessInterface) whiteChessInterface = new ChessInterface('white');
+            if (!whiteAI) whiteAI = new AI();
+            currentAI = whiteAI;
+            currentInterface = whiteChessInterface;
+        } else {
+            if (!chessInterface) chessInterface = new ChessInterface('black');
+            if (!aiPlayer) aiPlayer = new AI();
+            currentAI = aiPlayer;
+            currentInterface = chessInterface;
         }
         
-        aiPlayer.promptTurn(chessInterface);
+        currentAI.promptTurn(currentInterface);
         updateBoard();
         updateCapturedPieces();
         
         // Check for game end after AI move
-        const opponent = 'white';
+        const opponent = currentPlayer === 'white' ? 'black' : 'white';
         if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
             gameOver = true;
-            document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! Black Wins! 🎉`;
+            const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+            document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
             createConfetti();
         } else {
             addIncrement();
-            currentPlayer = 'white';
+            currentPlayer = opponent;
             if (!checkGameEnd()) {
                 updateTurnIndicator();
                 updateTimers();
+                
+                // Continue AI vs AI
+                if (selectedGameMode === 'ai-vs-ai' && !gameOver) {
+                    setTimeout(() => makeAIMove(), 1000);
+                }
             }
         }
     } catch (error) {

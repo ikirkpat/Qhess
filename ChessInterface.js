@@ -13,6 +13,17 @@ class ChessInterface {
         const fromCoords = this.algebraicToCoords(fromSquare);
         const toCoords = this.algebraicToCoords(toSquare);
         
+        // Check if it's the right player's turn
+        const piece = gameBoard[fromCoords.row][fromCoords.col];
+        if (!piece) {
+            throw new Error('No piece at source square');
+        }
+        
+        const isPieceWhite = isWhitePiece(piece);
+        if ((this.color === 'white' && !isPieceWhite) || (this.color === 'black' && isPieceWhite)) {
+            throw new Error('Not your piece');
+        }
+        
         const invalidReason = getInvalidMoveReason(fromCoords.row, fromCoords.col, toCoords.row, toCoords.col);
         if (invalidReason) {
             throw new Error(invalidReason);
@@ -29,9 +40,6 @@ class ChessInterface {
         
         gameBoard[toCoords.row][toCoords.col] = gameBoard[fromCoords.row][fromCoords.col];
         gameBoard[fromCoords.row][fromCoords.col] = '';
-        
-        // Switch turns
-        currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
     }
 
     /**
