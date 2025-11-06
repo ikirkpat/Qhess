@@ -7,15 +7,32 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="game-container">
-        <h1>Chess Game</h1>
-        <div class="game-mode-selector">
-            <button id="two-player-btn" class="mode-btn active">👥 2 Players</button>
-            <button id="ai-player-btn" class="mode-btn disabled">🤖 vs AI (Coming Soon)</button>
+    <div id="setup-screen" class="setup-screen">
+        <h1>Chess Game Setup</h1>
+        <div class="setup-section">
+            <h2>Game Mode</h2>
+            <div class="setup-options">
+                <button class="setup-btn active" data-mode="2player">👥 2 Players</button>
+                <button class="setup-btn disabled" data-mode="ai">🤖 vs AI (Coming Soon)</button>
+            </div>
         </div>
+        <div class="setup-section">
+            <h2>Time Control</h2>
+            <div class="setup-options">
+                <button class="setup-btn active" data-time="classical">🏆 Classical (90+30)</button>
+                <button class="setup-btn" data-time="rapid">⚡ Rapid (15+10)</button>
+                <button class="setup-btn" data-time="blitz">🔥 Blitz (5+5)</button>
+                <button class="setup-btn" data-time="bullet">🚀 Bullet (2+1)</button>
+            </div>
+        </div>
+        <button id="start-game-btn" class="start-btn">Start Game</button>
+    </div>
+
+    <div id="game-container" class="game-container hidden">
+        <h1>Chess Game</h1>
         <div class="timers">
-            <div class="timer" id="white-timer">⏱️ White: 10:00</div>
-            <div class="timer" id="black-timer">⏱️ Black: 10:00</div>
+            <div class="timer" id="white-timer">⏱️ White: 90:00</div>
+            <div class="timer" id="black-timer">⏱️ Black: 90:00</div>
         </div>
         <div id="turn-indicator" class="turn-indicator">White's Turn</div>
         <div id="message" class="message"></div>

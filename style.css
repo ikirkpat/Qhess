@@ -230,6 +230,85 @@ h1 {
     50% { opacity: 0.7; }
 }
 
+.setup-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.setup-section {
+    margin: 30px 0;
+}
+
+.setup-section h2 {
+    color: white;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.setup-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.setup-btn {
+    background: #2196F3;
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 150px;
+}
+
+.setup-btn.active {
+    background: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+    transform: scale(1.05);
+}
+
+.setup-btn.disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.setup-btn:hover:not(.disabled):not(.active) {
+    background: #1976D2;
+    transform: translateY(-2px);
+}
+
+.start-btn {
+    background: #FF5722;
+    color: white;
+    border: none;
+    padding: 20px 40px;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 40px;
+    transition: all 0.3s ease;
+}
+
+.start-btn:hover {
+    background: #E64A19;
+    transform: scale(1.1);
+    box-shadow: 0 5px 20px rgba(255, 87, 34, 0.4);
+}
+
+.hidden {
+    display: none;
+}
+
 .message {
     color: white;
     background: rgba(255, 0, 0, 0.8);

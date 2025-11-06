@@ -17,9 +17,19 @@ let currentPlayer = 'white';
 let capturedWhite = [];
 let capturedBlack = [];
 let gameOver = false;
-let whiteTime = 600; // 10 minutes in seconds
-let blackTime = 600;
+let whiteTime = 5400; // 90 minutes in seconds (Classical default)
+let blackTime = 5400;
 let timerInterval = null;
+let increment = 30; // 30 seconds increment (Classical default)
+let selectedGameMode = '2player';
+let selectedTimeControl = 'classical';
+
+const timeControls = {
+    classical: { time: 5400, increment: 30 }, // 90 minutes + 30 seconds
+    rapid: { time: 900, increment: 10 },      // 15 minutes + 10 seconds
+    blitz: { time: 300, increment: 5 },       // 5 minutes + 5 seconds
+    bullet: { time: 120, increment: 1 }       // 2 minutes + 1 second
+};
 
 function isWhitePiece(piece) {
     return whitePieces.includes(piece);
@@ -243,6 +253,15 @@ function createConfetti() {
 }
 
 function resetGame() {
+    document.getElementById('setup-screen').classList.remove('hidden');
+    document.getElementById('game-container').classList.add('hidden');
+    
+    if (timerInterval) clearInterval(timerInterval);
+}
+
+function startNewGame() {
+    const timeControl = timeControls[selectedTimeControl];
+    
     gameBoard = [
         ['♜','♞','♝','♛','♚','♝','♞','♜'],
         ['♟','♟','♟','♟','♟','♟','♟','♟'],
@@ -262,8 +281,9 @@ function resetGame() {
     capturedWhite = [];
     capturedBlack = [];
     gameOver = false;
-    whiteTime = 600;
-    blackTime = 600;
+    whiteTime = timeControl.time;
+    blackTime = timeControl.time;
+    increment = timeControl.increment;
     
     if (timerInterval) clearInterval(timerInterval);
     
@@ -293,6 +313,14 @@ function updateTimers() {
     // Low time warning
     document.getElementById('white-timer').classList.toggle('low-time', whiteTime <= 30);
     document.getElementById('black-timer').classList.toggle('low-time', blackTime <= 30);
+}
+
+function addIncrement() {
+    if (currentPlayer === 'white') {
+        whiteTime += increment;
+    } else {
+        blackTime += increment;
+    }
 }
 
 function startTimer() {
@@ -385,6 +413,7 @@ function handleSquareClick(square) {
                 document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
                 createConfetti();
             } else {
+                addIncrement(); // Add increment after move
                 currentPlayer = opponent;
                 if (!checkGameEnd()) {
                     updateTurnIndicator();
@@ -464,8 +493,48 @@ function createChessBoard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    createChessBoard();
-    updateTimers();
-    startTimer();
+    // Setup screen event listeners
+    document.querySelectorAll('.setup-btn[data-mode]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.classList.contains('disabled')) return;
+            document.querySelectorAll('.setup-btn[data-mode]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedGameMode = btn.dataset.mode;
+        });
+    });
+    
+    document.querySelectorAll('.setup-btn[data-time]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.setup-btn[data-time]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedTimeControl = btn.dataset.time;
+        });
+    });
+    
+    document.getElementById('start-game-btn').addEventListener('click', () => {
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('game-container').classList.remove('hidden');
+        createChessBoard();
+        startNewGame();
+    });
+    
     document.getElementById('reset-btn').addEventListener('click', resetGame);
 });
+
+function createChessBoard() {
+    const board = document.getElementById('chessboard');
+    board.innerHTML = ''; // Clear existing board
+    
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const square = document.createElement('div');
+            square.className = 'square';
+            square.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
+            square.dataset.row = row;
+            square.dataset.col = col;
+            square.textContent = gameBoard[row][col];
+            square.addEventListener('click', () => handleSquareClick(square));
+            board.appendChild(square);
+        }
+    }
+}
