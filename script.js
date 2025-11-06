@@ -465,6 +465,10 @@ function startNewGame() {
 
         // Start AI movement
         setTimeout(moveAIPieces, 2000);
+    } else if (selectedGameMode === 'zombie') {
+        // Zombie mode: Regular chess with piece conversion on capture
+        initializeZombieMode();
+        document.getElementById('turn-indicator').textContent = 'Convert or Be Converted!';
     } else {
         // Normal chess game
         gameBoard = [
@@ -608,7 +612,7 @@ function moveAIPieces() {
         setTimeout(() => showGameOver(), 500);
         return;
     }
-    
+
     // Also check if any AI piece is on the same square as the king
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
@@ -638,8 +642,46 @@ function getValidMovesForPiece(row, col) {
     return moves;
 }
 
+function playHorrorSound() {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Create a creepy horror sound effect
+    const oscillator1 = audioContext.createOscillator();
+    const oscillator2 = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    // Low frequency rumble
+    oscillator1.frequency.setValueAtTime(60, audioContext.currentTime);
+    oscillator1.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 2);
+    oscillator1.type = 'sawtooth';
+
+    // High pitched scream
+    oscillator2.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator2.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.5);
+    oscillator2.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 2);
+    oscillator2.type = 'square';
+
+    // Volume envelope
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+    gainNode.gain.exponentialRampToValueAtTime(0.1, audioContext.currentTime + 1);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 2);
+
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator1.start(audioContext.currentTime);
+    oscillator2.start(audioContext.currentTime);
+    oscillator1.stop(audioContext.currentTime + 2);
+    oscillator2.stop(audioContext.currentTime + 2);
+}
+
 function showGameOver() {
     gameOver = true;
+
+    // Play horror sound effect
+    playHorrorSound();
 
     const gameOverScreen = document.createElement('div');
     gameOverScreen.className = 'game-over-screen';
@@ -774,7 +816,7 @@ function handleSquareClick(square) {
                 invalidReason = "King can only move one square";
             }
         }
-        
+
         if (!invalidReason) {
             const piece = gameBoard[fromRow][fromCol];
 
@@ -785,6 +827,11 @@ function handleSquareClick(square) {
                 selectedSquare = null;
                 clearHighlights();
                 return;
+            }
+
+            // Handle zombie mode captures before making the move
+            if (selectedGameMode === 'zombie' && gameBoard[row][col]) {
+                handleZombieCapture(fromRow, fromCol, row, col);
             }
 
             // Track piece movement for castling
@@ -933,8 +980,6 @@ async function makeAIMove() {
             currentInterface = chessInterface;
         }
 
-        currentAI.promptTurn(currentInterface);
-
         await currentAI.promptTurn(currentInterface);
         updateBoard();
         updateCapturedPieces();
@@ -1002,9 +1047,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('setup-screen').classList.add('hidden');
         document.getElementById('game-container').classList.remove('hidden');
 
-        // Check if survival mode
+        // Check game mode
         survivalMode = selectedGameMode === 'survival';
         if (survivalMode) {
+            document.body.className = 'haunted';
+            selectedTheme = 'haunted';
+        } else if (selectedGameMode === 'zombie') {
             document.body.className = 'haunted';
             selectedTheme = 'haunted';
         } else {

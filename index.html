@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chess Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="setup-screen" class="setup-screen">
         <h1>Chess Game Setup</h1>
@@ -15,6 +17,8 @@
                 <button class="setup-btn active" data-mode="2player">👥 2 Players</button>
                 <button class="setup-btn" data-mode="ai">🤖 vs AI</button>
                 <button class="setup-btn" data-mode="survival">💀 Survival Horror</button>
+                <button class="setup-btn" data-mode="ai-vs-ai">🤖 AI vs AI 🤖</button>
+                <button class="setup-btn" data-mode="zombie">🧟 Zombie Mode</button>
             </div>
         </div>
         <div class="setup-section">
@@ -62,6 +66,8 @@
     </div>
     <script src="ChessInterface.js"></script>
     <script src="AI/AI.js"></script>
+    <script src="zombieMode.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

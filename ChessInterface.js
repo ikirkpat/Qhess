@@ -29,6 +29,11 @@ class ChessInterface {
             throw new Error(invalidReason);
         }
         
+        // Handle zombie mode captures if applicable
+        if (selectedGameMode === 'zombie' && gameBoard[toCoords.row][toCoords.col]) {
+            handleZombieCapture(fromCoords.row, fromCoords.col, toCoords.row, toCoords.col);
+        }
+        
         // Execute the move by calling the game's move logic
         if (gameBoard[toCoords.row][toCoords.col]) {
             if (isWhitePiece(gameBoard[toCoords.row][toCoords.col])) {
