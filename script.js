@@ -850,12 +850,19 @@ function handleSquareClick(square) {
             // Check if this is a castling move
             if (isCastlingMove(fromRow, fromCol, row, col)) {
                 performCastling(fromRow, fromCol, row, col);
+                updateBoard();
             } else {
-                // Make normal move
-                gameBoard[row][col] = piece;
-                gameBoard[fromRow][fromCol] = '';
+                // Check for pawn promotion
+                if (isPawnPromotion(piece, row)) {
+                    pendingPromotion = { fromRow, fromCol, toRow: row, toCol: col, piece };
+                    showPromotionModal(isWhitePiece(piece));
+                    return;
+                } else {
+                    gameBoard[row][col] = piece;
+                    gameBoard[fromRow][fromCol] = '';
+                    updateBoard();
+                }
             }
-            updateBoard();
 
             // In survival mode, don't switch turns - player always moves
             if (survivalMode) {
@@ -1064,6 +1071,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('reset-btn').addEventListener('click', resetGame);
+
+    // Promotion modal event listeners
+    document.querySelectorAll('.promotion-piece').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!pendingPromotion) return;
+            
+            const pieceType = btn.dataset.piece;
+            const isWhite = isWhitePiece(pendingPromotion.piece);
+            
+            let promotedPiece;
+            switch (pieceType) {
+                case 'queen': promotedPiece = isWhite ? '♕' : '♛'; break;
+                case 'rook': promotedPiece = isWhite ? '♖' : '♜'; break;
+                case 'bishop': promotedPiece = isWhite ? '♗' : '♝'; break;
+                case 'knight': promotedPiece = isWhite ? '♘' : '♞'; break;
+            }
+            
+            gameBoard[pendingPromotion.toRow][pendingPromotion.toCol] = promotedPiece;
+            gameBoard[pendingPromotion.fromRow][pendingPromotion.fromCol] = '';
+            
+            hidePromotionModal();
+            pendingPromotion = null;
+            updateBoard();
+            
+            // Continue game flow
+            if (!survivalMode) {
+                const opponent = currentPlayer === 'white' ? 'black' : 'white';
+                if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
+                    gameOver = true;
+                    const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+                    document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
+                    createConfetti();
+                } else {
+                    addIncrement();
+                    currentPlayer = opponent;
+                    if (!checkGameEnd()) {
+                        updateTurnIndicator();
+                        updateTimers();
+                        clearMessage();
+                        
+                        if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                            if (!gameOver) setTimeout(() => makeAIMove(), 1000);
+                        }
+                    }
+                }
+            }
+        });
+    });
 });
 
 function createChessBoard() {
