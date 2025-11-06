@@ -1450,6 +1450,26 @@ async function makeAIMove() {
         }
 
         await currentAI.promptTurn(currentInterface);
+        
+        // Check if AI move resulted in pawn promotion
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = gameBoard[row][col];
+                if (isPawnPromotion(piece, row)) {
+                    const choice = currentAI.choosePromotionPiece();
+                    const isWhite = isWhitePiece(piece);
+                    let promotedPiece;
+                    switch (choice) {
+                        case 'rook': promotedPiece = isWhite ? '♖' : '♜'; break;
+                        case 'bishop': promotedPiece = isWhite ? '♗' : '♝'; break;
+                        case 'knight': promotedPiece = isWhite ? '♘' : '♞'; break;
+                        default: promotedPiece = isWhite ? '♕' : '♛'; break;
+                    }
+                    gameBoard[row][col] = promotedPiece;
+                }
+            }
+        }
+        
         updateBoard();
         updateCapturedPieces();
 

@@ -42,8 +42,8 @@ class ChessInterface {
                 capturedBlack.push(gameBoard[toCoords.row][toCoords.col]);
             }
         }
-        
-        gameBoard[toCoords.row][toCoords.col] = gameBoard[fromCoords.row][fromCoords.col];
+                
+        gameBoard[toCoords.row][toCoords.col] = piece;
         gameBoard[fromCoords.row][fromCoords.col] = '';
     }
 

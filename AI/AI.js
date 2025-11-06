@@ -155,6 +155,11 @@ Respond with only the move in format "from to" (e.g., "e2 e4"). Choose the singl
         const rank = (8 - row).toString();
         return file + rank;
     }
+
+    choosePromotionPiece() {
+        // AI always promotes to queen (strongest piece)
+        return 'queen';
+    }
 }
 
 module.exports = AI;
