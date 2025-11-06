@@ -1,0 +1,219 @@
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game-container {
+    text-align: center;
+}
+
+h1 {
+    color: white;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    border: 4px solid #8B4513;
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        0 10px 20px rgba(0, 0, 0, 0.2),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.3);
+    background: #8B4513;
+    transform: perspective(1000px) rotateX(15deg);
+    transform-style: preserve-3d;
+}
+
+.square {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.3);
+    position: relative;
+}
+
+.light {
+    background: linear-gradient(135deg, #f5e6d3 0%, #f0d9b5 50%, #e8d0a0 100%);
+    box-shadow: 
+        inset 0 1px 3px rgba(255, 255, 255, 0.4),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark {
+    background: linear-gradient(135deg, #c49575 0%, #b58863 50%, #a67c52 100%);
+    box-shadow: 
+        inset 0 1px 3px rgba(255, 255, 255, 0.2),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.square:hover {
+    transform: translateZ(5px) scale(1.02);
+    box-shadow: 
+        inset 0 1px 3px rgba(255, 255, 255, 0.4),
+        0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.selected {
+    background: linear-gradient(135deg, #fff176 0%, #ffeb3b 50%, #fdd835 100%) !important;
+    box-shadow: 
+        0 0 20px rgba(255, 235, 59, 0.8),
+        0 5px 15px rgba(0, 0, 0, 0.3),
+        inset 0 1px 3px rgba(255, 255, 255, 0.5) !important;
+    transform: translateZ(8px);
+}
+
+.game-board {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.captured-pieces {
+    width: 120px;
+    text-align: center;
+}
+
+.captured-pieces h3 {
+    color: white;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+}
+
+.pieces-jail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    min-height: 100px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.captured-piece {
+    font-size: 24px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.turn-indicator {
+    color: white;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.reset-btn {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.reset-btn:hover {
+    background: #45a049;
+}
+
+.message {
+    color: white;
+    background: rgba(255, 0, 0, 0.8);
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    min-height: 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: opacity 0.3s ease;
+}
+
+.message.show {
+    display: flex;
+    opacity: 1;
+}
+
+.possible-move {
+    position: relative;
+}
+
+.possible-move::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 255, 0, 0.6);
+    border: 2px solid #00ff00;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.possible-capture {
+    position: relative;
+}
+
+.possible-capture::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    border: 3px solid #ff4444;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: #f0f;
+    animation: confetti-fall 3s linear forwards;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(-100vh) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
