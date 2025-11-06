@@ -562,7 +562,7 @@ function createChessBoard() {
     }
 }
 
-function makeAIMove() {
+async function makeAIMove() {
     if (gameOver) return;
     
     try {
@@ -580,7 +580,7 @@ function makeAIMove() {
             currentInterface = chessInterface;
         }
         
-        currentAI.promptTurn(currentInterface);
+        await currentAI.promptTurn(currentInterface);
         updateBoard();
         updateCapturedPieces();
         
