@@ -1513,6 +1513,26 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.setup-btn[data-mode]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedGameMode = btn.dataset.mode;
+            
+            // Show/hide starting position and time control sections based on game mode
+            const scenarioSection = document.querySelector('.setup-section:has(.setup-btn[data-scenario])');
+            const timeSection = document.querySelector('.setup-section:has(.setup-btn[data-time])');
+            
+            if (scenarioSection) {
+                if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
+                    scenarioSection.style.display = 'block';
+                } else {
+                    scenarioSection.style.display = 'none';
+                }
+            }
+            
+            if (timeSection) {
+                if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
+                    timeSection.style.display = 'block';
+                } else {
+                    timeSection.style.display = 'none';
+                }
+            }
         });
     });
 
