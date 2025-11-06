@@ -28,8 +28,53 @@ let chessInterface = null;
 let whiteAI = null;
 let whiteChessInterface = null;
 let selectedTheme = 'classic';
+let selectedScenario = 'standard';
 let survivalMode = false;
 let aiPieces = [];
+let pendingPromotion = null;
+
+const scenarios = {
+    standard: [
+        ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
+        ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
+        ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
+    ],
+    endgame: [
+        ['', '', '', '', '♚', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '♕', '', '', '', ''],
+        ['', '', '', '', '♔', '', '', '']
+    ],
+    promotion: [
+        ['', '', '', '', '♚', '', '', ''],
+        ['', '', '♙', '', '', '♟', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '♔', '', '', '']
+    ],
+    castling: [
+        ['♜', '', '', '', '♚', '', '', '♜'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['♖', '', '', '', '♔', '', '', '♖']
+    ]
+};
 let pieceMoved = {
     whiteKing: false,
     blackKing: false,
@@ -53,6 +98,61 @@ function isWhitePiece(piece) {
 function isBlackPiece(piece) {
     return blackPieces.includes(piece);
 }
+
+function isPawnPromotion(piece, toRow) {
+    return (piece === '♙' && toRow === 0) || (piece === '♟' && toRow === 7);
+}
+
+function showPromotionModal(isWhite) {
+    const choice = prompt('Choose promotion piece:\n1 - Queen\n2 - Rook\n3 - Bishop\n4 - Knight', '1');
+    
+    let promotedPiece;
+    switch (choice) {
+        case '2': promotedPiece = isWhite ? '♖' : '♜'; break;
+        case '3': promotedPiece = isWhite ? '♗' : '♝'; break;
+        case '4': promotedPiece = isWhite ? '♘' : '♞'; break;
+        default: promotedPiece = isWhite ? '♕' : '♛'; break;
+    }
+    
+    if (pendingPromotion) {
+        gameBoard[pendingPromotion.toRow][pendingPromotion.toCol] = promotedPiece;
+        gameBoard[pendingPromotion.fromRow][pendingPromotion.fromCol] = '';
+        pendingPromotion = null;
+        updateBoard();
+        
+        // Continue game flow
+        if (!survivalMode) {
+            const opponent = currentPlayer === 'white' ? 'black' : 'white';
+            if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
+                gameOver = true;
+                const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+                document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
+                createConfetti();
+            } else {
+                addIncrement();
+                currentPlayer = opponent;
+                if (!checkGameEnd()) {
+                    updateTurnIndicator();
+                    updateTimers();
+                    clearMessage();
+                    
+                    if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                        if (!gameOver) setTimeout(() => makeAIMove(), 1000);
+                    }
+                }
+            }
+        }
+    }
+}
+
+function hidePromotionModal() {
+    // Not needed for prompt-based approach
+}
+
+// Expose functions globally for AI
+window.isWhitePiece = isWhitePiece;
+window.isBlackPiece = isBlackPiece;
+window.isValidMove = isValidMove;
 
 function getInvalidMoveReason(fromRow, fromCol, toRow, toCol) {
     const piece = gameBoard[fromRow][fromCol];
@@ -474,17 +574,8 @@ function startNewGame() {
         initializeShooterMode();
         return; // Skip normal chess setup
     } else {
-        // Normal chess game
-        gameBoard = [
-            ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
-            ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
-            ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
-        ];
+        // Use selected scenario
+        gameBoard = scenarios[selectedScenario].map(row => [...row]);
     }
 
     if (selectedSquare) {
@@ -854,12 +945,19 @@ function handleSquareClick(square) {
             // Check if this is a castling move
             if (isCastlingMove(fromRow, fromCol, row, col)) {
                 performCastling(fromRow, fromCol, row, col);
+                updateBoard();
             } else {
-                // Make normal move
-                gameBoard[row][col] = piece;
-                gameBoard[fromRow][fromCol] = '';
+                // Check for pawn promotion
+                if (isPawnPromotion(piece, row)) {
+                    pendingPromotion = { fromRow, fromCol, toRow: row, toCol: col, piece };
+                    showPromotionModal(isWhitePiece(piece));
+                    return;
+                } else {
+                    gameBoard[row][col] = piece;
+                    gameBoard[fromRow][fromCol] = '';
+                    updateBoard();
+                }
             }
-            updateBoard();
 
             // In survival mode, don't switch turns - player always moves
             if (survivalMode) {
@@ -1406,6 +1504,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('.setup-btn[data-scenario]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.setup-btn[data-scenario]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedScenario = btn.dataset.scenario;
+        });
+    });
+
     document.querySelectorAll('.setup-btn[data-theme]').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.setup-btn[data-theme]').forEach(b => b.classList.remove('active'));
@@ -1438,6 +1544,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('reset-btn').addEventListener('click', resetGame);
+
+    // Promotion modal event listeners
+    document.querySelectorAll('.promotion-piece').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!pendingPromotion) return;
+            
+            const pieceType = btn.dataset.piece;
+            const isWhite = isWhitePiece(pendingPromotion.piece);
+            
+            let promotedPiece;
+            switch (pieceType) {
+                case 'queen': promotedPiece = isWhite ? '♕' : '♛'; break;
+                case 'rook': promotedPiece = isWhite ? '♖' : '♜'; break;
+                case 'bishop': promotedPiece = isWhite ? '♗' : '♝'; break;
+                case 'knight': promotedPiece = isWhite ? '♘' : '♞'; break;
+            }
+            
+            gameBoard[pendingPromotion.toRow][pendingPromotion.toCol] = promotedPiece;
+            gameBoard[pendingPromotion.fromRow][pendingPromotion.fromCol] = '';
+            
+            hidePromotionModal();
+            pendingPromotion = null;
+            updateBoard();
+            
+            // Continue game flow
+            if (!survivalMode) {
+                const opponent = currentPlayer === 'white' ? 'black' : 'white';
+                if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
+                    gameOver = true;
+                    const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+                    document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
+                    createConfetti();
+                } else {
+                    addIncrement();
+                    currentPlayer = opponent;
+                    if (!checkGameEnd()) {
+                        updateTurnIndicator();
+                        updateTimers();
+                        clearMessage();
+                        
+                        if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                            if (!gameOver) setTimeout(() => makeAIMove(), 1000);
+                        }
+                    }
+                }
+            }
+        });
+    });
 });
 
 function createChessBoard() {
