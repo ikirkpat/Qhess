@@ -17,6 +17,9 @@ let currentPlayer = 'white';
 let capturedWhite = [];
 let capturedBlack = [];
 let gameOver = false;
+let whiteTime = 600; // 10 minutes in seconds
+let blackTime = 600;
+let timerInterval = null;
 
 function isWhitePiece(piece) {
     return whitePieces.includes(piece);
@@ -259,12 +262,68 @@ function resetGame() {
     capturedWhite = [];
     capturedBlack = [];
     gameOver = false;
+    whiteTime = 600;
+    blackTime = 600;
+    
+    if (timerInterval) clearInterval(timerInterval);
     
     clearHighlights();
     clearMessage();
     updateBoard();
     updateTurnIndicator();
     updateCapturedPieces();
+    updateTimers();
+    startTimer();
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateTimers() {
+    document.getElementById('white-timer').textContent = `⏱️ White: ${formatTime(whiteTime)}`;
+    document.getElementById('black-timer').textContent = `⏱️ Black: ${formatTime(blackTime)}`;
+    
+    // Update active timer styling
+    document.getElementById('white-timer').classList.toggle('active', currentPlayer === 'white' && !gameOver);
+    document.getElementById('black-timer').classList.toggle('active', currentPlayer === 'black' && !gameOver);
+    
+    // Low time warning
+    document.getElementById('white-timer').classList.toggle('low-time', whiteTime <= 30);
+    document.getElementById('black-timer').classList.toggle('low-time', blackTime <= 30);
+}
+
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    timerInterval = setInterval(() => {
+        if (gameOver) {
+            clearInterval(timerInterval);
+            return;
+        }
+        
+        if (currentPlayer === 'white') {
+            whiteTime--;
+            if (whiteTime <= 0) {
+                gameOver = true;
+                document.getElementById('turn-indicator').textContent = '⏰ Time Up! Black Wins!';
+                clearInterval(timerInterval);
+                return;
+            }
+        } else {
+            blackTime--;
+            if (blackTime <= 0) {
+                gameOver = true;
+                document.getElementById('turn-indicator').textContent = '⏰ Time Up! White Wins!';
+                clearInterval(timerInterval);
+                return;
+            }
+        }
+        
+        updateTimers();
+    }, 1000);
 }
 
 function checkGameEnd() {
@@ -274,6 +333,7 @@ function checkGameEnd() {
             const winner = currentPlayer === 'white' ? 'Black' : 'White';
             document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
             createConfetti();
+            clearInterval(timerInterval);
             return true;
         } else {
             // Player is in check but has legal moves
@@ -282,7 +342,8 @@ function checkGameEnd() {
         }
     } else if (!hasLegalMoves(currentPlayer)) {
         gameOver = true;
-        document.getElementById('turn-indicator').textContent = 'Stalemate - Draw!';
+        document.getElementById('turn-indicator').textContent = '🤝 Stalemate - Draw!';
+        clearInterval(timerInterval);
         return true;
     }
     return false;
@@ -327,6 +388,7 @@ function handleSquareClick(square) {
                 currentPlayer = opponent;
                 if (!checkGameEnd()) {
                     updateTurnIndicator();
+                    updateTimers();
                     clearMessage();
                 }
             }
@@ -403,5 +465,7 @@ function createChessBoard() {
 
 document.addEventListener('DOMContentLoaded', () => {
     createChessBoard();
+    updateTimers();
+    startTimer();
     document.getElementById('reset-btn').addEventListener('click', resetGame);
 });

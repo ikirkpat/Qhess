@@ -9,8 +9,15 @@
 <body>
     <div class="game-container">
         <h1>Chess Game</h1>
+        <div class="game-mode-selector">
+            <button id="two-player-btn" class="mode-btn active">👥 2 Players</button>
+            <button id="ai-player-btn" class="mode-btn disabled">🤖 vs AI (Coming Soon)</button>
+        </div>
+        <div class="timers">
+            <div class="timer" id="white-timer">⏱️ White: 10:00</div>
+            <div class="timer" id="black-timer">⏱️ Black: 10:00</div>
+        </div>
         <div id="turn-indicator" class="turn-indicator">White's Turn</div>
-        <button id="reset-btn" class="reset-btn">New Game</button>
         <div id="message" class="message"></div>
         <div class="game-board">
             <div class="captured-pieces" id="captured-white">
@@ -23,6 +30,7 @@
                 <div class="pieces-jail"></div>
             </div>
         </div>
+        <button id="reset-btn" class="reset-btn bottom">New Game</button>
     </div>
     <script src="script.js"></script>
 </body>
