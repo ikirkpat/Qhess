@@ -14,12 +14,18 @@
         <div class="setup-section">
             <h2>Game Mode</h2>
             <div class="setup-options">
-                <button class="setup-btn active" data-mode="2player">👥 2 Players</button>
-                <button class="setup-btn" data-mode="ai">🤖 vs AI</button>
-                <button class="setup-btn" data-mode="survival">💀 Survival Horror</button>
-                <button class="setup-btn" data-mode="ai-vs-ai">🤖 AI vs AI 🤖</button>
-                <button class="setup-btn" data-mode="zombie">🧟 Zombie Mode</button>
-                <button class="setup-btn" data-mode="shooter">🔫 Chess Shooter</button>
+                <button class="setup-btn active" data-game-type="classic">♔ Classic Chess</button>
+                <button class="setup-btn" data-game-type="zombie">🧟 Zombie Chess</button>
+                <button class="setup-btn" data-game-type="survival">💀 Survival Horror</button>
+                <button class="setup-btn" data-game-type="shooter">🔫 Chess Shooter</button>
+            </div>
+        </div>
+        <div class="setup-section" id="ai-section">
+            <h2>Players</h2>
+            <div class="setup-options">
+                <button class="setup-btn active" data-ai-config="human-vs-human">👥 Human vs Human</button>
+                <button class="setup-btn" data-ai-config="human-vs-ai">🤖 Human vs AI</button>
+                <button class="setup-btn" data-ai-config="ai-vs-ai">🤖 AI vs AI 🤖</button>
             </div>
         </div>
         <div class="setup-section">
@@ -78,6 +84,7 @@
     <script src="AI/AI.js"></script>
     <script src="ClassicGameMode.js"></script>
     <script src="zombieMode.js"></script>
+    <script src="GameModeFactory.js"></script>
     <script src="script.js"></script>
     <script src="shooterMode.js"></script>
 </body>

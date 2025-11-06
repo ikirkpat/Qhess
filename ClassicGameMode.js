@@ -6,16 +6,23 @@ class ClassicGameMode {
         this.aiPlayer = null;
     }
 
-    initializeGame(gameMode) {
-        if (gameMode === 'ai') {
+    initializeGame(aiConfig, isZombieMode = false) {
+        this.isZombieMode = isZombieMode;
+        this.aiConfig = aiConfig;
+        
+        if (aiConfig === 'human-vs-ai') {
             this.chessDriver = new ChessDriver('black');
             this.aiPlayer = new AI();
-        } else if (gameMode === 'ai-vs-ai') {
+        } else if (aiConfig === 'ai-vs-ai') {
             this.chessDriver = new ChessDriver('black');
             this.aiPlayer = new AI();
             this.whiteChessDriver = new ChessDriver('white');
             this.whiteAI = new AI();
             setTimeout(() => this.makeAIMove(), 1000);
+        }
+        
+        if (isZombieMode) {
+            initializeZombieMode();
         }
     }
 
@@ -76,7 +83,7 @@ class ClassicGameMode {
                     updateTimers();
 
                     // Continue AI vs AI
-                    if (selectedGameMode === 'ai-vs-ai' && !gameOver) {
+                    if (this.aiConfig === 'ai-vs-ai' && !gameOver) {
                         setTimeout(() => this.makeAIMove(), 1000);
                     }
                 }
@@ -88,7 +95,7 @@ class ClassicGameMode {
 
     handleSquareClick(square) {
         if (gameOver) return;
-        if (selectedGameMode === 'ai-vs-ai') return;
+        if (this.aiConfig === 'ai-vs-ai') return;
 
         const row = parseInt(square.dataset.row);
         const col = parseInt(square.dataset.col);
@@ -105,12 +112,16 @@ class ClassicGameMode {
                 trackPieceMovement(fromRow, fromCol, piece);
 
                 if (gameBoard[row][col]) {
-                    if (isWhitePiece(gameBoard[row][col])) {
-                        capturedWhite.push(gameBoard[row][col]);
+                    if (this.isZombieMode) {
+                        handleZombieCapture(fromRow, fromCol, row, col);
                     } else {
-                        capturedBlack.push(gameBoard[row][col]);
+                        if (isWhitePiece(gameBoard[row][col])) {
+                            capturedWhite.push(gameBoard[row][col]);
+                        } else {
+                            capturedBlack.push(gameBoard[row][col]);
+                        }
+                        updateCapturedPieces();
                     }
-                    updateCapturedPieces();
                 }
 
                 if (isCastlingMove(fromRow, fromCol, row, col)) {
@@ -142,7 +153,7 @@ class ClassicGameMode {
                         updateTimers();
                         clearMessage();
 
-                        if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                        if ((this.aiConfig === 'human-vs-ai' && currentPlayer === 'black') || this.aiConfig === 'ai-vs-ai') {
                             if (!gameOver) {
                                 setTimeout(() => this.makeAIMove(), 1000);
                             }

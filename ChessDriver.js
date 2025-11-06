@@ -30,7 +30,7 @@ class ChessDriver {
         }
         
         // Handle zombie mode captures if applicable
-        if (selectedGameMode === 'zombie' && gameBoard[toCoords.row][toCoords.col]) {
+        if (selectedGameType === 'zombie' && gameBoard[toCoords.row][toCoords.col]) {
             handleZombieCapture(fromCoords.row, fromCoords.col, toCoords.row, toCoords.col);
         }
         

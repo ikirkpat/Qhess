@@ -21,10 +21,10 @@ let whiteTime = 5400; // 90 minutes in seconds (Classical default)
 let blackTime = 5400;
 let timerInterval = null;
 let increment = 30; // 30 seconds increment (Classical default)
-let selectedGameMode = '2player';
+let selectedGameType = 'classic';
+let selectedAIConfig = 'human-vs-human';
 let selectedTimeControl = 'classical';
-let aiPlayer = null;
-let classicGameMode = new ClassicGameMode();
+let currentGameMode = null;
 let selectedTheme = 'classic';
 let selectedScenario = 'standard';
 let survivalMode = false;
@@ -134,8 +134,10 @@ function showPromotionModal(isWhite) {
                     updateTimers();
                     clearMessage();
                     
-                    if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
-                        if (!gameOver) setTimeout(() => makeAIMove(), 1000);
+                    if ((selectedAIConfig === 'human-vs-ai' && currentPlayer === 'black') || selectedAIConfig === 'ai-vs-ai') {
+                        if (!gameOver && currentGameMode && currentGameMode.makeAIMove) {
+                            setTimeout(() => currentGameMode.makeAIMove(), 1000);
+                        }
                     }
                 }
             }
@@ -563,17 +565,18 @@ function startNewGame() {
 
         // Start AI movement
         setTimeout(moveAIPieces, 2000);
-    } else if (selectedGameMode === 'zombie') {
-        // Zombie mode: Regular chess with piece conversion on capture
-        initializeZombieMode();
-        document.getElementById('turn-indicator').textContent = '🧟 Convert or Be Converted! 🧟';
-    } else if (selectedGameMode === 'shooter') {
-        // Shooter mode: Chess piece shooter game
-        initializeShooterMode();
-        return; // Skip normal chess setup
     } else {
-        // Use selected scenario
-        gameBoard = scenarios[selectedScenario].map(row => [...row]);
+        // Create and initialize game mode using factory
+        currentGameMode = GameModeFactory.createGameMode(selectedGameType, selectedAIConfig);
+        currentGameMode.initialize();
+        
+        if (selectedGameType === 'shooter') {
+            return; // Skip normal chess setup
+        }
+        
+        if (['classic', 'zombie'].includes(selectedGameType)) {
+            gameBoard = scenarios[selectedScenario].map(row => [...row]);
+        }
     }
 
     if (selectedSquare) {
@@ -606,10 +609,7 @@ function startNewGame() {
     updateTimers();
     if (!survivalMode) startTimer();
 
-    // Initialize classic game modes
-    if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
-        classicGameMode.initializeGame(selectedGameMode);
-    }
+    // Game mode initialization is handled by the factory pattern above
 }
 
 function placeSurvivalPieces() {
@@ -879,9 +879,9 @@ function checkGameEnd() {
 }
 
 function handleSquareClick(square) {
-    // Delegate to ClassicGame for standard modes
-    if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
-        classicGameMode.handleSquareClick(square);
+    // Delegate to current game mode
+    if (currentGameMode) {
+        currentGameMode.handleSquareClick(square);
         return;
     }
 
@@ -918,7 +918,7 @@ function handleSquareClick(square) {
                 return;
             }
 
-            if (selectedGameMode === 'zombie' && gameBoard[row][col]) {
+            if (selectedGameType === 'zombie' && gameBoard[row][col]) {
                 handleZombieCapture(fromRow, fromCol, row, col);
             }
 
@@ -995,7 +995,97 @@ function clearMessage() {
 
 function updateTurnIndicator() {
     const turnEl = document.getElementById('turn-indicator');
-    turnEl.textContent = `${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)}'s Turn`;
+    if (selectedGameType === 'zombie') {
+        turnEl.textContent = `🧟 ${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)}'s Turn - Convert or Be Converted! 🧟`;
+    } else {
+        turnEl.textContent = `${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)}'s Turn`;
+    }
+}
+
+function handleZombieSquareClick(square) {
+    if (gameOver) return;
+
+    const row = parseInt(square.dataset.row);
+    const col = parseInt(square.dataset.col);
+    const piece = gameBoard[row][col];
+
+    if (selectedSquare) {
+        const fromRow = parseInt(selectedSquare.dataset.row);
+        const fromCol = parseInt(selectedSquare.dataset.col);
+
+        const invalidReason = getInvalidMoveReason(fromRow, fromCol, row, col);
+        if (!invalidReason) {
+            const piece = gameBoard[fromRow][fromCol];
+
+            if (gameBoard[row][col]) {
+                handleZombieCapture(fromRow, fromCol, row, col);
+            }
+
+            trackPieceMovement(fromRow, fromCol, piece);
+            gameBoard[row][col] = piece;
+            gameBoard[fromRow][fromCol] = '';
+            updateBoard();
+
+            const opponent = currentPlayer === 'white' ? 'black' : 'white';
+            if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
+                gameOver = true;
+                const winner = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+                document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! ${winner} Wins! 🎉`;
+                createConfetti();
+            } else {
+                addIncrement();
+                currentPlayer = opponent;
+                if (!checkGameEnd()) {
+                    updateTurnIndicator();
+                    updateTimers();
+                    clearMessage();
+                }
+            }
+        } else {
+            showMessage(invalidReason);
+        }
+
+        selectedSquare.classList.remove('selected');
+        selectedSquare = null;
+        clearHighlights();
+    } else if (piece && ((currentPlayer === 'white' && isWhitePiece(piece)) || (currentPlayer === 'black' && isBlackPiece(piece)))) {
+        if (selectedSquare) selectedSquare.classList.remove('selected');
+        selectedSquare = square;
+        square.classList.add('selected');
+        showPossibleMoves(row, col);
+    }
+}
+
+function handleSurvivalSquareClick(square) {
+    if (gameOver) return;
+
+    const row = parseInt(square.dataset.row);
+    const col = parseInt(square.dataset.col);
+    const piece = gameBoard[row][col];
+
+    if (selectedSquare) {
+        const fromRow = parseInt(selectedSquare.dataset.row);
+        const fromCol = parseInt(selectedSquare.dataset.col);
+
+        const rowDiff = Math.abs(row - fromRow);
+        const colDiff = Math.abs(col - fromCol);
+        
+        if (rowDiff <= 1 && colDiff <= 1 && gameBoard[fromRow][fromCol] === '♔') {
+            gameBoard[row][col] = gameBoard[fromRow][fromCol];
+            gameBoard[fromRow][fromCol] = '';
+            updateBoard();
+        } else {
+            showMessage('King can only move one square');
+        }
+
+        selectedSquare.classList.remove('selected');
+        selectedSquare = null;
+        clearHighlights();
+    } else if (piece === '♔') {
+        if (selectedSquare) selectedSquare.classList.remove('selected');
+        selectedSquare = square;
+        square.classList.add('selected');
+    }
 }
 
 // Shooter Mode Functions
@@ -1385,35 +1475,44 @@ function createChessBoard() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Setup screen event listeners
-    document.querySelectorAll('.setup-btn[data-mode]').forEach(btn => {
+    // Game type selection
+    document.querySelectorAll('.setup-btn[data-game-type]').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (btn.classList.contains('disabled')) return;
-            document.querySelectorAll('.setup-btn[data-mode]').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.setup-btn[data-game-type]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            selectedGameMode = btn.dataset.mode;
-            
-            // Show/hide starting position and time control sections based on game mode
-            const scenarioSection = document.querySelector('.setup-section:has(.setup-btn[data-scenario])');
-            const timeSection = document.querySelector('.setup-section:has(.setup-btn[data-time])');
-            
-            if (scenarioSection) {
-                if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
-                    scenarioSection.style.display = 'block';
-                } else {
-                    scenarioSection.style.display = 'none';
-                }
-            }
-            
-            if (timeSection) {
-                if (['2player', 'ai', 'ai-vs-ai'].includes(selectedGameMode)) {
-                    timeSection.style.display = 'block';
-                } else {
-                    timeSection.style.display = 'none';
-                }
-            }
+            selectedGameType = btn.dataset.gameType;
+            updateSectionVisibility();
+    
+    // Initialize visibility on page load
+    updateSectionVisibility();
         });
     });
+
+    // AI configuration selection
+    document.querySelectorAll('.setup-btn[data-ai-config]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.setup-btn[data-ai-config]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedAIConfig = btn.dataset.aiConfig;
+        });
+    });
+
+    function updateSectionVisibility() {
+        const tempGameMode = GameModeFactory.createGameMode(selectedGameType, 'human-vs-human');
+        const scenarioSection = document.querySelector('.setup-section:has(.setup-btn[data-scenario])');
+        const timeSection = document.querySelector('.setup-section:has(.setup-btn[data-time])');
+        const aiSection = document.getElementById('ai-section');
+        
+        if (scenarioSection) {
+            scenarioSection.style.display = tempGameMode.shouldShowStartingPosition() ? 'block' : 'none';
+        }
+        if (timeSection) {
+            timeSection.style.display = tempGameMode.shouldShowTimeControl() ? 'block' : 'none';
+        }
+        if (aiSection) {
+            aiSection.style.display = ['classic', 'zombie'].includes(selectedGameType) ? 'block' : 'none';
+        }
+    }
 
     document.querySelectorAll('.setup-btn[data-time]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1443,19 +1542,19 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('setup-screen').classList.add('hidden');
         document.getElementById('game-container').classList.remove('hidden');
 
-        // Check game mode
-        survivalMode = selectedGameMode === 'survival';
-        if (survivalMode) {
-            document.body.className = 'haunted';
-            selectedTheme = 'haunted';
-        } else if (selectedGameMode === 'zombie') {
-            document.body.className = 'zombie';
-            selectedTheme = 'zombie';
-        } else if (selectedGameMode === 'shooter') {
-            startNewGame();
-            return;
+        // Set theme based on game type
+        survivalMode = selectedGameType === 'survival';
+        if (currentGameMode) {
+            const gameTheme = currentGameMode.getTheme();
+            document.body.className = gameTheme;
+            selectedTheme = gameTheme;
         } else {
             document.body.className = selectedTheme;
+        }
+        
+        if (selectedGameType === 'shooter') {
+            startNewGame();
+            return;
         }
 
         createChessBoard();
@@ -1503,8 +1602,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateTimers();
                         clearMessage();
                         
-                        if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
-                            if (!gameOver) setTimeout(() => makeAIMove(), 1000);
+                        if ((selectedAIConfig === 'human-vs-ai' && currentPlayer === 'black') || selectedAIConfig === 'ai-vs-ai') {
+                            if (!gameOver && currentGameMode && currentGameMode.makeAIMove) {
+                                setTimeout(() => currentGameMode.makeAIMove(), 1000);
+                            }
                         }
                     }
                 }
