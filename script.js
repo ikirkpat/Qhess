@@ -23,6 +23,8 @@ let timerInterval = null;
 let increment = 30; // 30 seconds increment (Classical default)
 let selectedGameMode = '2player';
 let selectedTimeControl = 'classical';
+let aiPlayer = null;
+let chessInterface = null;
 
 const timeControls = {
     classical: { time: 5400, increment: 30 }, // 90 minutes + 30 seconds
@@ -294,6 +296,12 @@ function startNewGame() {
     updateCapturedPieces();
     updateTimers();
     startTimer();
+    
+    // Initialize AI if needed
+    if (selectedGameMode === 'ai') {
+        chessInterface = new ChessInterface('black');
+        aiPlayer = new AI();
+    }
 }
 
 function formatTime(seconds) {
@@ -419,6 +427,11 @@ function handleSquareClick(square) {
                     updateTurnIndicator();
                     updateTimers();
                     clearMessage();
+                    
+                    // AI move if it's AI's turn
+                    if (selectedGameMode === 'ai' && currentPlayer === 'black' && !gameOver) {
+                        setTimeout(() => makeAIMove(), 1000);
+                    }
                 }
             }
         } else {
@@ -489,6 +502,47 @@ function createChessBoard() {
             square.addEventListener('click', () => handleSquareClick(square));
             board.appendChild(square);
         }
+    }
+}
+
+function makeAIMove() {
+    if (gameOver || currentPlayer !== 'black') return;
+    
+    try {
+        if (!chessInterface) {
+            chessInterface = new ChessInterface('black');
+        }
+        if (!aiPlayer) {
+            aiPlayer = new AI();
+        }
+        
+        aiPlayer.promptTurn(chessInterface);
+        updateBoard();
+        updateCapturedPieces();
+        
+        // Check for game end after AI move
+        const opponent = 'white';
+        if (isInCheck(opponent) && !hasLegalMoves(opponent)) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = `🎉 CHECKMATE! Black Wins! 🎉`;
+            createConfetti();
+        } else {
+            addIncrement();
+            currentPlayer = 'white';
+            if (!checkGameEnd()) {
+                updateTurnIndicator();
+                updateTimers();
+            }
+        }
+    } catch (error) {
+        console.error('AI move error:', error);
+    }
+}
+
+function initializeAI() {
+    if (selectedGameMode === 'ai') {
+        chessInterface = new ChessInterface('black');
+        aiPlayer = new AI();
     }
 }
 
