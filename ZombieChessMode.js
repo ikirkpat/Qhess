@@ -23,13 +23,13 @@ class ZombieChessMode extends GameMode {
         this.aiConfig = aiConfig;
         
         if (aiConfig === 'human-vs-ai') {
-            this.chessDriver = new ChessDriver('black');
-            this.aiPlayer = new AI();
+            this.chessDriver = new ChessDriver();
+            this.aiPlayer = new AI('black');
         } else if (aiConfig === 'ai-vs-ai') {
-            this.chessDriver = new ChessDriver('black');
-            this.aiPlayer = new AI();
-            this.whiteChessDriver = new ChessDriver('white');
-            this.whiteAI = new AI();
+            this.chessDriver = new ChessDriver();
+            this.aiPlayer = new AI('black');
+            this.whiteChessDriver = new ChessDriver();
+            this.whiteAI = new AI('white');
             setTimeout(() => this.makeAIMove(), 1000);
         }
         
@@ -45,13 +45,13 @@ class ZombieChessMode extends GameMode {
             let currentAI, currentInterface;
 
             if (currentPlayer === 'white') {
-                if (!this.whiteChessDriver) this.whiteChessDriver = new ChessDriver('white');
-                if (!this.whiteAI) this.whiteAI = new AI();
+                if (!this.whiteChessDriver) this.whiteChessDriver = new ChessDriver();
+                if (!this.whiteAI) this.whiteAI = new AI('white');
                 currentAI = this.whiteAI;
                 currentInterface = this.whiteChessDriver;
             } else {
-                if (!this.chessDriver) this.chessDriver = new ChessDriver('black');
-                if (!this.aiPlayer) this.aiPlayer = new AI();
+                if (!this.chessDriver) this.chessDriver = new ChessDriver();
+                if (!this.aiPlayer) this.aiPlayer = new AI('black');
                 currentAI = this.aiPlayer;
                 currentInterface = this.chessDriver;
             }
