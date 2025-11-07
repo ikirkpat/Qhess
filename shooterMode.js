@@ -85,31 +85,37 @@ function initAudio() {
 function createBackgroundMusic() {
     if (!audioEnabled || !audioContext) return;
 
-    const oscillator1 = audioContext.createOscillator();
-    const oscillator2 = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    try {
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
 
-    oscillator1.frequency.setValueAtTime(110, audioContext.currentTime);
-    oscillator2.frequency.setValueAtTime(220, audioContext.currentTime);
-    oscillator1.type = 'sawtooth';
-    oscillator2.type = 'square';
+        // Haunted elevator music - minor chord progression
+        oscillator1.frequency.setValueAtTime(110, audioContext.currentTime); // Low drone
+        oscillator2.frequency.setValueAtTime(165, audioContext.currentTime); // Minor third
 
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        oscillator1.type = 'sine';
+        oscillator2.type = 'triangle';
 
-    oscillator1.connect(gainNode);
-    oscillator2.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+        gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
 
-    oscillator1.start();
-    oscillator2.start();
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(audioContext.destination);
 
-    backgroundMusic = { oscillator1, oscillator2, gainNode };
+        oscillator1.start();
+        oscillator2.start();
+
+        backgroundMusic = { oscillator1, oscillator2, gainNode };
+    } catch (e) {
+    }
 }
 
 function stopBackgroundMusic() {
     if (backgroundMusic) {
         backgroundMusic.oscillator1.stop();
         backgroundMusic.oscillator2.stop();
+        if (backgroundMusic.oscillator3) backgroundMusic.oscillator3.stop();
         backgroundMusic = null;
     }
 }
@@ -148,10 +154,8 @@ function playPieceSound(piece) {
 }
 
 function initializeShooterMode() {
-    console.log('shooterMode.js initializeShooterMode called');
     loadProgressionData();
     const gameContainer = document.getElementById('game-container');
-    console.log('gameContainer found:', gameContainer);
     gameContainer.innerHTML = `
         <div id="shooter-container">
             <div id="shooter-menu">
@@ -238,7 +242,6 @@ function startShooterGame() {
     playVoiceAnnouncement('Game Start! Good luck!');
 
     setupShooterControls();
-    console.log('About to call gameLoop');
     gameLoop();
 }
 
@@ -467,11 +470,9 @@ function checkCollisions() {
             shooterGame.player.y < enemy.y + 30 && shooterGame.player.y + 30 > enemy.y) {
 
             shooterGame.lives--;
-            console.log('Player hit! Lives now:', shooterGame.lives);
             shooterGame.enemies.splice(i, 1);
 
             if (shooterGame.lives <= 0) {
-                console.log('Game over triggered');
                 shooterGameOver();
                 return;
             }
@@ -632,7 +633,6 @@ function getThemeColors(theme) {
 
 function changeTheme() {
     const wave = Math.floor(shooterGame.enemiesKilled / 10) + 1;
-    console.log(`changeTheme called: enemiesKilled=${shooterGame.enemiesKilled}, wave=${wave}, currentWave=${shooterGame.currentWave}`);
     if (wave !== shooterGame.currentWave) {
         shooterGame.currentWave = wave;
         shooterGame.currentTheme = waveThemes[(wave - 1) % waveThemes.length];
@@ -641,7 +641,6 @@ function changeTheme() {
         // Increase scroll speed with each wave
         shooterGame.scrollSpeed = Math.min(1 + (wave - 1) * 0.3, 4); // Cap at 4px per frame
 
-        console.log(`Kill ${shooterGame.enemiesKilled}: Theme changed to ${shooterGame.currentTheme}, body class set to: ${document.body.className}, scroll speed: ${shooterGame.scrollSpeed}`);
     }
 }
 
@@ -677,7 +676,6 @@ function updateShooterUI() {
     if (livesEl) {
         const hearts = '❤️'.repeat(Math.max(0, shooterGame.lives)) + '💔'.repeat(Math.max(0, 3 - shooterGame.lives));
         livesEl.textContent = hearts;
-        console.log('Lives UI updated:', shooterGame.lives, 'Display:', hearts);
     }
 }
 
@@ -883,7 +881,6 @@ function returnToMainMenu() {
 
 function gameLoop() {
     if (shooterGame.gameRunning) {
-        console.log('Game loop running');
         updateGame();
         drawGame();
         requestAnimationFrame(gameLoop);
