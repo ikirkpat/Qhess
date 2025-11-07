@@ -11,7 +11,7 @@ class GameModeFactory {
 
         switch (gameType) {
             case 'classic':
-                return new ClassicChessMode(modeConfig);
+                return new ClassicMode(modeConfig);
             case 'zombie':
                 return new ZombieChessMode(modeConfig);
             case 'survival':
@@ -53,73 +53,3 @@ class GameMode {
     }
 }
 
-class ClassicChessMode extends GameMode {
-    constructor(config) {
-        super(config);
-        this.classicGameMode = new ClassicGameMode();
-    }
-
-    initialize() {
-        this.classicGameMode.initializeGame(this.config.aiConfig, false);
-    }
-
-    handleSquareClick(square) {
-        this.classicGameMode.handleSquareClick(square);
-    }
-
-    makeAIMove() {
-        return this.classicGameMode.makeAIMove();
-    }
-}
-
-class ZombieChessMode extends GameMode {
-    constructor(config) {
-        super(config);
-        this.classicGameMode = new ClassicGameMode();
-    }
-
-    initialize() {
-        if (this.config.aiConfig === 'human-vs-human') {
-            initializeZombieMode();
-            document.getElementById('turn-indicator').textContent = '🧟 Convert or Be Converted! 🧟';
-        } else {
-            this.classicGameMode.initializeGame(this.config.aiConfig, true);
-            document.getElementById('turn-indicator').textContent = '🧟 Chess with Zombie Conversion! 🧟';
-        }
-    }
-
-    handleSquareClick(square) {
-        if (this.config.aiConfig === 'human-vs-human') {
-            // Use original zombie mode logic for human vs human
-            handleZombieSquareClick(square);
-        } else {
-            this.classicGameMode.handleSquareClick(square);
-        }
-    }
-
-    makeAIMove() {
-        if (this.classicGameMode) {
-            return this.classicGameMode.makeAIMove();
-        }
-    }
-}
-
-
-
-class ShooterMode extends GameMode {
-    initialize() {
-        initializeShooterMode();
-    }
-
-    handleSquareClick(square) {
-        // Shooter mode doesn't use square clicks
-    }
-
-    shouldShowTimeControl() {
-        return false;
-    }
-
-    shouldShowStartingPosition() {
-        return false;
-    }
-}

@@ -1,9 +1,16 @@
-class ClassicGameMode {
-    constructor() {
+class ClassicMode extends GameMode {
+    constructor(config) {
+        super(config);
         this.chessDriver = null;
         this.whiteAI = null;
         this.whiteChessDriver = null;
         this.aiPlayer = null;
+        this.isZombieMode = false;
+        this.aiConfig = config.aiConfig;
+    }
+
+    initialize() {
+        this.initializeGame(this.config.aiConfig, false);
     }
 
     initializeGame(aiConfig, isZombieMode = false) {
