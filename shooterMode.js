@@ -1,13 +1,15 @@
 // Chess Shooter Mode
 const waveThemes = ['default', 'cyberpunk', 'neon', 'space', 'haunted', 'zombie'];
 
-// Extend the existing shooterGame object from script.js
-if (typeof window.shooterGame === 'undefined') {
-    window.shooterGame = {};
-}
-
-// Add shooter-specific properties
-Object.assign(shooterGame, {
+// Initialize shooterGame object - completely replace any existing one
+window.shooterGame = {
+    canvas: null, ctx: null,
+    player: { x: 400, y: 500, piece: '♔', health: 3, maxHealth: 3 },
+    bullets: [], enemies: [], powerups: [], boss: null,
+    score: 0, highScore: 0, gameRunning: false, keys: {},
+    lastEnemySpawn: 0, lastPowerupSpawn: 0, activePowers: {},
+    wave: 1, enemiesKilled: 0, combo: 0, maxCombo: 0,
+    particles: [], muzzleFlash: 0, screenShake: 0, bgOffset: 0,
     difficulty: 'normal',
     lastShot: 0,
     currentWave: 1,
@@ -16,8 +18,9 @@ Object.assign(shooterGame, {
     bgScrollY: 0,
     scrollSpeed: 1,
     totalScrolled: 0,
-    lives: 3
-});
+    lives: 3,
+    lastBossShot: 0
+};
 
 // Progression System
 let progressionData = {
@@ -174,7 +177,7 @@ function initializeShooterMode() {
                 <div id="shooter-ui" style="position: absolute; top: 60px; left: 250px; z-index: 100; display: flex; flex-direction: column; gap: 4px; font-family: Arial, sans-serif;">
                     <div id="shooter-score" style="background: rgba(0,0,0,0.8); color: #f1c40f; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">Score: 0</div>
                     <div id="shooter-time" style="background: rgba(0,0,0,0.8); color: #3498db; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">Time: 0s</div>
-                    <div id="shooter-kills" style="background: rgba(0,0,0,0.8); color: #e74c3c; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">Kills: 0</div>
+                    <div id="shooter-powerup" style="background: rgba(0,0,0,0.8); color: #9b59b6; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">No Power</div>
                     <div id="shooter-lives" style="background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-size: 14px;">❤️❤️❤️</div>
                     <div id="shooter-controls" style="background: rgba(0,0,0,0.7); color: #bdc3c7; padding: 3px 6px; border-radius: 3px; font-size: 10px;">Arrow Keys: Move | Space: Shoot | P: Pause</div>
                 </div>
@@ -221,6 +224,7 @@ function startShooterGame() {
     shooterGame.totalScrolled = 0;
     shooterGame.player = { x: 400, y: 500, piece: progressionData.currentPiece };
     shooterGame.lives = 3;
+    shooterGame.keys = {};
     shooterGame.lastEnemySpawn = Date.now();
     shooterGame.boss = null;
     shooterGame.lastBossShot = 0;
@@ -457,16 +461,22 @@ function checkCollisions() {
     });
 
     // Player-enemy collisions
-    shooterGame.enemies.forEach((enemy, index) => {
+    for (let i = shooterGame.enemies.length - 1; i >= 0; i--) {
+        const enemy = shooterGame.enemies[i];
         if (shooterGame.player.x < enemy.x + 30 && shooterGame.player.x + 30 > enemy.x &&
             shooterGame.player.y < enemy.y + 30 && shooterGame.player.y + 30 > enemy.y) {
+
             shooterGame.lives--;
-            shooterGame.enemies.splice(index, 1);
+            console.log('Player hit! Lives now:', shooterGame.lives);
+            shooterGame.enemies.splice(i, 1);
+
             if (shooterGame.lives <= 0) {
+                console.log('Game over triggered');
                 shooterGameOver();
+                return;
             }
         }
-    });
+    }
 
     // Player-boss collisions
     if (shooterGame.boss && shooterGame.player.x < shooterGame.boss.x + 60 && shooterGame.player.x + 30 > shooterGame.boss.x &&
@@ -532,7 +542,7 @@ function drawGame() {
         ctx.fillStyle = '#ff0000';
         ctx.font = '60px Arial';
         ctx.fillText(shooterGame.boss.piece, shooterGame.boss.x, shooterGame.boss.y + 60);
-        
+
         // Boss health bar
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillRect(200, 20, 400, 20);
@@ -641,31 +651,37 @@ function updateShooterScore() {
 
 function updateShooterUI() {
     const elapsed = Math.floor((Date.now() - shooterGame.startTime) / 1000);
-    document.getElementById('shooter-score').textContent = `Score: ${shooterGame.score}`;
-    document.getElementById('shooter-time').textContent = `Time: ${elapsed}s`;
-    document.getElementById('shooter-kills').textContent = `Kills: ${shooterGame.enemiesKilled}`;
-    const hearts = '❤️'.repeat(shooterGame.lives) + '💔'.repeat(3 - shooterGame.lives);
-    document.getElementById('shooter-lives').textContent = hearts;
+    const scoreEl = document.getElementById('shooter-score');
+    const timeEl = document.getElementById('shooter-time');
+    const powerupEl = document.getElementById('shooter-powerup');
+    const livesEl = document.getElementById('shooter-lives');
 
-    // Update wave display
-    const waveDisplay = document.getElementById('shooter-wave') || createWaveDisplay();
-    waveDisplay.textContent = `Wave: ${shooterGame.currentWave} (${shooterGame.currentTheme})`;
+    if (scoreEl) scoreEl.textContent = `Score: ${shooterGame.score}`;
+    if (timeEl) timeEl.textContent = `Time: ${elapsed}s`;
+    if (powerupEl) {
+        const activePower = Object.keys(shooterGame.activePowers).find(key => shooterGame.activePowers[key]);
+        if (activePower) {
+            const powerNames = {
+                freeze: '❄️ Freeze',
+                doublePoints: '💰 Double',
+                slowMotion: '⏰ Slow',
+                homing: '🎯 Homing',
+                rapidFire: '💥 Rapid',
+                laser: '⚡ Laser'
+            };
+            powerupEl.textContent = powerNames[activePower] || activePower;
+        } else {
+            powerupEl.textContent = 'No Power';
+        }
+    }
+    if (livesEl) {
+        const hearts = '❤️'.repeat(Math.max(0, shooterGame.lives)) + '💔'.repeat(Math.max(0, 3 - shooterGame.lives));
+        livesEl.textContent = hearts;
+        console.log('Lives UI updated:', shooterGame.lives, 'Display:', hearts);
+    }
 }
 
-function createWaveDisplay() {
-    const waveDisplay = document.createElement('div');
-    waveDisplay.id = 'shooter-wave';
-    waveDisplay.style.cssText = `
-        background: rgba(0, 0, 0, 0.7);
-        padding: 8px 15px;
-        border-radius: 5px;
-        font-size: 16px;
-        font-weight: bold;
-        color: white;
-    `;
-    document.getElementById('shooter-ui').appendChild(waveDisplay);
-    return waveDisplay;
-}
+
 
 function checkAchievements() {
     const elapsed = (Date.now() - shooterGame.startTime) / 1000;
@@ -850,7 +866,18 @@ function gameOverHandler(e) {
     } else if (e.code === 'KeyM') {
         document.removeEventListener('keydown', gameOverHandler);
         shooterGame.gameOver = false;
-        initializeShooterMode();
+        returnToMainMenu();
+    }
+}
+
+function returnToMainMenu() {
+    // Return to the main chess game setup screen
+    if (typeof resetGame === 'function') {
+        resetGame();
+    } else {
+        // Fallback - manually show setup screen
+        document.getElementById('setup-screen').classList.remove('hidden');
+        document.getElementById('game-container').classList.add('hidden');
     }
 }
 
@@ -1000,7 +1027,7 @@ function spawnPowerup() {
         { type: 'rapidFire', symbol: '💥', color: '#ff4500' },
         { type: 'laser', symbol: '⚡', color: '#00ffff' }
     ];
-    
+
     const powerup = powerups[Math.floor(Math.random() * powerups.length)];
     shooterGame.powerups.push({
         x: Math.random() * 750,
@@ -1011,7 +1038,7 @@ function spawnPowerup() {
 
 function activatePowerup(type) {
     playPowerUpSound();
-    
+
     switch (type) {
         case 'freeze':
             shooterGame.activePowers.freeze = true;
@@ -1065,3 +1092,27 @@ function playGameOverSound() {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 1.5);
 }
+
+class ShooterMode extends GameMode {
+    initialize() {
+        initializeShooterMode();
+    }
+
+    handleSquareClick(square) {
+        return;
+    }
+
+    shouldShowTimeControl() {
+        return false;
+    }
+
+    shouldShowStartingPosition() {
+        return false;
+    }
+
+    getTheme() {
+        return 'space';
+    }
+}
+
+window.ShooterMode = ShooterMode;

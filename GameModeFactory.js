@@ -52,4 +52,3 @@ class GameMode {
             this.config.gameType === 'survival' ? 'haunted' : 'classic';
     }
 }
-
