@@ -22,8 +22,11 @@ window.shooterGame = {
     lastBossShot: 0
 };
 
-// Progression System
+// Enhanced Progression System
 let progressionData = {
+    level: 1,
+    xp: 0,
+    coins: 0,
     stats: {
         totalEnemiesKilled: 0,
         totalTimePlayed: 0,
@@ -38,8 +41,36 @@ let progressionData = {
         untouchable: false
     },
     unlockedPieces: ['♔'],
-    currentPiece: '♔'
+    currentPiece: '♔',
+    pieceUpgrades: {
+        '♔': { level: 1, promoted: false },
+        '♕': { level: 0, promoted: false },
+        '♖': { level: 0, promoted: false },
+        '♗': { level: 0, promoted: false },
+        '♘': { level: 0, promoted: false },
+        '♙': { level: 0, promoted: false }
+    },
+    skillTree: {
+        fasterReload: 0,
+        moreHealth: 0,
+        bonusXP: 0
+    },
+    dailyChallenges: [],
+    lastChallengeReset: new Date().toDateString()
 };
+
+const upgradesCosts = {
+    unlock: { '♕': 100, '♖': 150, '♗': 200, '♘': 250, '♙': 50 },
+    upgrade: [0, 25, 50, 100, 200],
+    promote: 500,
+    skills: { fasterReload: [50, 100, 200], moreHealth: [75, 150, 300], bonusXP: [40, 80, 160] }
+};
+
+const dailyChallengeTemplates = [
+    { type: 'score', target: 1000, reward: 25, description: 'Score 1,000 points' },
+    { type: 'kills', target: 50, reward: 20, description: 'Kill 50 enemies' },
+    { type: 'survive', target: 180, reward: 30, description: 'Survive 3 minutes' }
+];
 
 const pieceAbilities = {
     '♔': { speed: 5, fireRate: 200, bulletSpeed: 8, name: 'King' },
@@ -160,21 +191,51 @@ function initializeShooterMode() {
         <div id="shooter-container">
             <div id="shooter-menu">
                 <h2>Chess Shooter</h2>
-                <div id="piece-selector">
-                    <label>Piece:</label>
-                    <select id="piece-select"></select>
+                <div class="progression-tabs">
+                    <button class="tab-btn active" data-tab="play">Play</button>
+                    <button class="tab-btn" data-tab="upgrades">Upgrades</button>
+                    <button class="tab-btn" data-tab="challenges">Challenges</button>
+                    <button class="tab-btn" data-tab="stats">Stats</button>
                 </div>
-                <div id="difficulty-selector">
-                    <label>Difficulty:</label>
-                    <select id="difficulty-select">
-                        <option value="easy">Easy</option>
-                        <option value="normal" selected>Normal</option>
-                        <option value="hard">Hard</option>
-                    </select>
+                
+                <div id="play-tab" class="tab-content active">
+                    <div class="currency-bar">
+                        <span>💰 ${progressionData.coins} coins</span>
+                        <span>⭐ Level ${progressionData.level}</span>
+                        <span>🎯 XP: ${progressionData.xp}/${progressionData.level * 100}</span>
+                    </div>
+                    <div id="piece-selector">
+                        <label>Piece:</label>
+                        <select id="piece-select"></select>
+                    </div>
+                    <div id="difficulty-selector">
+                        <label>Difficulty:</label>
+                        <select id="difficulty-select">
+                            <option value="easy">Easy</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <button id="start-shooter">Start Game</button>
                 </div>
-                <button id="start-shooter">Start Game</button>
-                <div id="stats-display"></div>
-                <div id="achievements-display"></div>
+                
+                <div id="upgrades-tab" class="tab-content">
+                    <div class="currency-bar">
+                        <span>💰 ${progressionData.coins} coins</span>
+                    </div>
+                    <div id="upgrades-grid"></div>
+                </div>
+                
+                <div id="challenges-tab" class="tab-content">
+                    <h3>Daily Challenges</h3>
+                    <div id="challenges-list"></div>
+                </div>
+                
+                <div id="stats-tab" class="tab-content">
+                    <div id="stats-display"></div>
+                    <div id="achievements-display"></div>
+                    <div id="leaderboard"></div>
+                </div>
             </div>
             <div id="shooter-game" style="display:none;">
                 <canvas id="shooter-canvas" width="800" height="600"></canvas>
@@ -194,9 +255,13 @@ function initializeShooterMode() {
 
 function setupShooterMenu() {
     initAudio();
+    checkDailyChallenges();
     updatePieceSelector();
     updateStatsDisplay();
     updateAchievementsDisplay();
+    updateUpgradesGrid();
+    updateChallengesList();
+    setupTabs();
 
     document.getElementById('start-shooter').onclick = startShooterGame;
     document.getElementById('difficulty-select').onchange = (e) => {
@@ -226,9 +291,15 @@ function startShooterGame() {
     shooterGame.bgScrollY = 0;
     shooterGame.scrollSpeed = 1;
     shooterGame.totalScrolled = 0;
-    shooterGame.player = { x: 400, y: 500, piece: progressionData.currentPiece };
-    shooterGame.lives = 3;
+
+    // Apply enhanced abilities
+    const enhancedAbility = getEnhancedAbility(progressionData.currentPiece);
+    shooterGame.player = { x: 400, y: 500, piece: progressionData.currentPiece, animTime: 0 };
+    shooterGame.lives = 3 + progressionData.skillTree.moreHealth;
     shooterGame.keys = {};
+    shooterGame.particles = [];
+    shooterGame.screenShake = 0;
+    shooterGame.muzzleFlash = 0;
     shooterGame.lastEnemySpawn = Date.now();
     shooterGame.boss = null;
     shooterGame.lastBossShot = 0;
@@ -237,6 +308,7 @@ function startShooterGame() {
     shooterGame.activePowers = {};
 
     progressionData.stats.gamesPlayed++;
+    updateChallengeProgress('piece', progressionData.currentPiece);
 
     createBackgroundMusic();
     playVoiceAnnouncement('Game Start! Good luck!');
@@ -275,7 +347,7 @@ function shoot() {
     if (!shooterGame.gameRunning) return;
 
     const now = Date.now();
-    const ability = pieceAbilities[shooterGame.player.piece];
+    const ability = getEnhancedAbility(shooterGame.player.piece);
     const fireRate = shooterGame.activePowers.rapidFire ? ability.fireRate / 5 : ability.fireRate;
 
     if (now - shooterGame.lastShot < fireRate) return;
@@ -317,6 +389,7 @@ function shoot() {
     }
 
     shooterGame.lastShot = now;
+    shooterGame.muzzleFlash = 8;
     playWeaponSound(shooterGame.player.piece);
 }
 
@@ -335,14 +408,28 @@ function spawnEnemy() {
 function updateGame() {
     if (!shooterGame.gameRunning) return;
 
-    const ability = pieceAbilities[shooterGame.player.piece];
+    const ability = getEnhancedAbility(shooterGame.player.piece);
     const difficulty = difficultySettings[shooterGame.difficulty];
 
     // Update scrolling background
     shooterGame.totalScrolled += shooterGame.scrollSpeed;
     shooterGame.bgScrollY += shooterGame.scrollSpeed;
-    if (shooterGame.bgScrollY >= 50) { // Reset when one square has scrolled
+    if (shooterGame.bgScrollY >= 50) {
         shooterGame.bgScrollY = 0;
+    }
+
+    // Update particles
+    shooterGame.particles = shooterGame.particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        p.alpha = p.life / p.maxLife;
+        return p.life > 0;
+    });
+
+    // Update screen shake
+    if (shooterGame.screenShake > 0) {
+        shooterGame.screenShake--;
     }
 
     // Move player
@@ -433,7 +520,13 @@ function checkCollisions() {
                 shooterGame.score += points;
                 shooterGame.enemiesKilled++;
                 progressionData.stats.totalEnemiesKilled++;
+                addXP(5);
+                addCoins(2);
+                updateChallengeProgress('kills', 1);
+                updateChallengeProgress('score', points);
                 playHitSound();
+                createParticles(enemy.x + 15, enemy.y + 15, '#ff6600', 8);
+                shooterGame.screenShake = 5;
                 changeTheme();
                 checkAchievements();
             }
@@ -471,6 +564,8 @@ function checkCollisions() {
 
             shooterGame.lives--;
             shooterGame.enemies.splice(i, 1);
+            createParticles(shooterGame.player.x + 15, shooterGame.player.y + 15, '#ff0000', 12);
+            shooterGame.screenShake = 15;
 
             if (shooterGame.lives <= 0) {
                 shooterGameOver();
@@ -492,7 +587,12 @@ function checkCollisions() {
 function drawGame() {
     const ctx = shooterGame.ctx;
 
-    // Theme changes based on kills now
+    // Screen shake effect
+    const shakeX = shooterGame.screenShake > 0 ? (Math.random() - 0.5) * shooterGame.screenShake : 0;
+    const shakeY = shooterGame.screenShake > 0 ? (Math.random() - 0.5) * shooterGame.screenShake : 0;
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
 
     // Clear canvas with theme background
     const backgroundColor = getThemeBackground(shooterGame.currentTheme);
@@ -502,25 +602,56 @@ function drawGame() {
     // Draw chess floor pattern
     drawChessFloor();
 
-    // Draw player with theme colors
+    // Draw player with animations and effects
+    shooterGame.player.animTime += 0.1;
     const playerColor = getThemePlayerColor(shooterGame.currentTheme);
+
+    ctx.save();
+    ctx.translate(shooterGame.player.x + 15, shooterGame.player.y + 15);
+
+    // Floating animation
+    const float = Math.sin(shooterGame.player.animTime) * 2;
+    ctx.translate(0, float);
+
+    // Pulsing glow effect
+    const glowSize = 5 + Math.sin(shooterGame.player.animTime * 2) * 3;
+    ctx.shadowColor = playerColor;
+    ctx.shadowBlur = glowSize;
+
+    // Muzzle flash
+    if (shooterGame.muzzleFlash > 0) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ffff00';
+        shooterGame.muzzleFlash--;
+    }
+
     ctx.fillStyle = playerColor;
     ctx.font = '30px Arial';
-    ctx.fillText(shooterGame.player.piece, shooterGame.player.x, shooterGame.player.y + 30);
+    ctx.textAlign = 'center';
+    ctx.fillText(shooterGame.player.piece, 0, 5);
 
-    // Draw bullets with theme colors
+    ctx.restore();
+
+    // Draw bullets with effects
     const bulletColor = getThemeBulletColor(shooterGame.currentTheme);
     shooterGame.bullets.forEach(bullet => {
         if (bullet.type === 'laser') {
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
             ctx.fillStyle = '#00ffff';
             ctx.fillRect(bullet.x, 0, bullet.width, 600);
         } else if (bullet.type === 'homing') {
+            ctx.shadowColor = '#ff00ff';
+            ctx.shadowBlur = 8;
             ctx.fillStyle = '#ff00ff';
             ctx.fillRect(bullet.x, bullet.y, 6, 12);
         } else {
+            ctx.shadowColor = bulletColor;
+            ctx.shadowBlur = 4;
             ctx.fillStyle = bulletColor;
             ctx.fillRect(bullet.x, bullet.y, 4, 10);
         }
+        ctx.shadowBlur = 0;
     });
 
     // Draw power-ups
@@ -530,12 +661,28 @@ function drawGame() {
         ctx.fillText(powerup.symbol, powerup.x, powerup.y + 20);
     });
 
-    // Draw enemies with theme colors
+    // Draw enemies with animations
     const enemyColor = getThemeEnemyColor(shooterGame.currentTheme);
-    ctx.fillStyle = enemyColor;
     ctx.font = '30px Arial';
-    shooterGame.enemies.forEach(enemy => {
-        ctx.fillText(enemy.piece, enemy.x, enemy.y + 30);
+    shooterGame.enemies.forEach((enemy, i) => {
+        ctx.save();
+        ctx.translate(enemy.x + 15, enemy.y + 15);
+
+        // Rotating animation
+        const rotation = (Date.now() * 0.002 + i) % (Math.PI * 2);
+        ctx.rotate(rotation * 0.1);
+
+        // Dynamic lighting glow
+        if (shooterGame.currentTheme === 'neon' || shooterGame.currentTheme === 'cyberpunk') {
+            ctx.shadowColor = enemyColor;
+            ctx.shadowBlur = 8;
+        }
+
+        ctx.fillStyle = enemyColor;
+        ctx.textAlign = 'center';
+        ctx.fillText(enemy.piece, 0, 5);
+
+        ctx.restore();
     });
 
     // Draw boss
@@ -550,6 +697,16 @@ function drawGame() {
         ctx.fillStyle = '#ff0000';
         ctx.fillRect(200, 20, (shooterGame.boss.health / shooterGame.boss.maxHealth) * 400, 20);
     }
+
+    // Draw particles
+    shooterGame.particles.forEach(p => {
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
 }
 
 function getThemeBackground(theme) {
@@ -565,11 +722,11 @@ function getThemeBackground(theme) {
 
 function getThemePlayerColor(theme) {
     switch (theme) {
-        case 'cyberpunk': return '#d8b4d8ff';
-        case 'neon': return '#00ffff';
-        case 'space': return '#4a90e2';
-        case 'haunted': return '#ff0000';
-        case 'zombie': return '#00ff00';
+        case 'cyberpunk': return '#ff00ff';
+        case 'neon': return '#ffff00';
+        case 'space': return '#ffffff';
+        case 'haunted': return '#ffaa00';
+        case 'zombie': return '#ffff00';
         default: return '#f1c40f';
     }
 }
@@ -761,11 +918,15 @@ function showNotification(message) {
 
 function updatePieceSelector() {
     const select = document.getElementById('piece-select');
+    if (!select) return;
     select.innerHTML = '';
-    progressionData.unlockedPieces.forEach(piece => {
+    const uniquePieces = [...new Set(progressionData.unlockedPieces)];
+    uniquePieces.forEach(piece => {
         const option = document.createElement('option');
         option.value = piece;
-        option.textContent = `${pieceAbilities[piece].name} ${piece}`;
+        const upgrade = progressionData.pieceUpgrades[piece];
+        const name = pieceAbilities[piece].name;
+        option.textContent = upgrade.promoted ? `⭐ Super ${name}` : `${name} (Lv.${upgrade.level})`;
         if (piece === progressionData.currentPiece) option.selected = true;
         select.appendChild(option);
     });
@@ -788,7 +949,7 @@ function updateAchievementsDisplay() {
         { id: 'destroyer100', name: 'Destroyer', desc: 'Kill 100 enemies total' },
         { id: 'survivor5min', name: 'Survivor', desc: 'Survive for 5 minutes' },
         { id: 'speedDemon', name: 'Speed Demon', desc: 'Kill 50 enemies in one game' },
-        { id: 'untouchable', name: 'Untouchable', desc: 'Survive 2 minutes without being hit' }
+        { id: 'untouchable', name: 'Untouchable', desc: 'Survive 2 minutes' }
     ];
 
     const html = achievements.map(ach => {
@@ -809,6 +970,8 @@ function shooterGameOver() {
     // Update stats
     const timePlayed = Math.floor((Date.now() - shooterGame.startTime) / 1000);
     progressionData.stats.totalTimePlayed += timePlayed;
+    updateChallengeProgress('survive', timePlayed);
+    addToLeaderboard(shooterGame.score, progressionData.currentPiece, shooterGame.difficulty);
     const isNewHighScore = shooterGame.score > progressionData.stats.highScore;
     if (isNewHighScore) {
         progressionData.stats.highScore = shooterGame.score;
@@ -1113,3 +1276,441 @@ class ShooterMode extends GameMode {
 }
 
 window.ShooterMode = ShooterMode;
+// Visual improvements functions
+function createParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        shooterGame.particles.push({
+            x: x + (Math.random() - 0.5) * 20,
+            y: y + (Math.random() - 0.5) * 20,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            color: color,
+            size: Math.random() * 4 + 2,
+            life: 30,
+            maxLife: 30,
+            alpha: 1
+        });
+    }
+}
+// Add progression functions at the end of the file
+
+// Progression Functions
+function checkDailyChallenges() {
+    const today = new Date().toDateString();
+    if (progressionData.lastChallengeReset !== today || progressionData.dailyChallenges.length === 0) {
+        generateDailyChallenges();
+        progressionData.lastChallengeReset = today;
+        saveProgressionData();
+    }
+}
+
+function generateDailyChallenges() {
+    progressionData.dailyChallenges = [];
+    const shuffled = [...dailyChallengeTemplates].sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < 3; i++) {
+        const template = shuffled[i % shuffled.length];
+        progressionData.dailyChallenges.push({
+            ...template,
+            progress: 0,
+            completed: false,
+            id: Date.now() + i
+        });
+    }
+}
+
+function addXP(amount) {
+    const bonus = 1 + (progressionData.skillTree.bonusXP * 0.2);
+    progressionData.xp += Math.floor(amount * bonus);
+
+    const xpNeeded = progressionData.level * 100;
+    if (progressionData.xp >= xpNeeded) {
+        progressionData.level++;
+        progressionData.xp -= xpNeeded;
+        progressionData.coins += 25;
+        showNotification(`Level Up! Level ${progressionData.level}`);
+    }
+}
+
+function addCoins(amount) {
+    progressionData.coins += amount;
+}
+
+function updateChallengeProgress(type, value) {
+    progressionData.dailyChallenges.forEach(challenge => {
+        if (!challenge.completed && challenge.type === type) {
+            if (type === 'piece' && value === challenge.target) {
+                challenge.progress = 1;
+            } else if (type !== 'piece') {
+                challenge.progress = Math.min(challenge.progress + value, challenge.target);
+            }
+
+            if (challenge.progress >= challenge.target) {
+                challenge.completed = true;
+                progressionData.coins += challenge.reward;
+                showNotification(`Challenge Complete! +${challenge.reward} coins`);
+            }
+        }
+    });
+}
+
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+
+            if (btn.dataset.tab === 'upgrades') updateUpgradesGrid();
+            if (btn.dataset.tab === 'challenges') updateChallengesList();
+        };
+    });
+}
+
+function updateUpgradesGrid() {
+    const grid = document.getElementById('upgrades-grid');
+    if (!grid) return;
+
+    grid.innerHTML = `
+        <h3>Piece Upgrades</h3>
+        <div class="upgrades-section">
+            ${Object.keys(progressionData.pieceUpgrades).map(piece => {
+        const upgrade = progressionData.pieceUpgrades[piece];
+        const isUnlocked = progressionData.unlockedPieces.includes(piece);
+        const canUpgrade = isUnlocked && upgrade.level < 5;
+        const canPromote = upgrade.level >= 3 && !upgrade.promoted;
+        const enhanced = getEnhancedAbility(piece);
+        const base = pieceAbilities[piece];
+
+        return `
+                    <div class="upgrade-card">
+                        <div class="piece-icon">${piece}</div>
+                        <div class="piece-name">${pieceAbilities[piece].name}</div>
+                        <div class="piece-level">Level ${upgrade.level}/5</div>
+                        ${upgrade.promoted ? '<div class="promoted">⭐ PROMOTED (+100% damage)</div>' : ''}
+                        <div class="upgrade-stats">
+                            Speed: ${enhanced.speed.toFixed(1)} ${upgrade.level > 0 ? `(+${((enhanced.speed / base.speed - 1) * 100).toFixed(0)}%)` : ''}<br>
+                            Fire Rate: ${enhanced.fireRate.toFixed(0)}ms ${upgrade.level > 0 ? `(+${((base.fireRate / enhanced.fireRate - 1) * 100).toFixed(0)}%)` : ''}<br>
+                            Bullet Speed: ${enhanced.bulletSpeed.toFixed(1)} ${upgrade.level > 0 ? `(+${((enhanced.bulletSpeed / base.bulletSpeed - 1) * 100).toFixed(0)}%)` : ''}
+                        </div>
+                        ${!isUnlocked ?
+                `<button onclick="unlockPiece('${piece}')" ${progressionData.coins < upgradesCosts.unlock[piece] ? 'disabled' : ''}>
+                                Unlock (${upgradesCosts.unlock[piece]} coins)
+                            </button>` :
+                canUpgrade ?
+                    `<button onclick="upgradePiece('${piece}')" ${progressionData.coins < upgradesCosts.upgrade[upgrade.level] ? 'disabled' : ''}>
+                                Upgrade (${upgradesCosts.upgrade[upgrade.level]} coins)
+                            </button>` : ''
+            }
+                        ${canPromote && progressionData.coins >= upgradesCosts.promote ?
+                `<button onclick="promotePiece('${piece}')">Promote (${upgradesCosts.promote} coins)</button>` : ''
+            }
+                    </div>
+                `;
+    }).join('')}
+        </div>
+        
+        <h3>Skill Tree</h3>
+        <div class="skills-section">
+            ${Object.keys(progressionData.skillTree).map(skill => {
+        const level = progressionData.skillTree[skill];
+        const maxLevel = upgradesCosts.skills[skill].length;
+        const canUpgrade = level < maxLevel;
+
+        const descriptions = {
+            fasterReload: `Reduces weapon cooldown by ${(level * 15).toFixed(0)}%`,
+            moreHealth: `+${level} extra lives at game start`,
+            bonusXP: `+${(level * 20).toFixed(0)}% XP gain from kills`
+        };
+
+        return `
+                    <div class="skill-card">
+                        <div class="skill-name">${skill.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
+                        <div class="skill-level">Level ${level}/${maxLevel}</div>
+                        <div class="skill-desc">${descriptions[skill]}</div>
+                        ${canUpgrade ?
+                `<button onclick="upgradeSkill('${skill}')" ${progressionData.coins < upgradesCosts.skills[skill][level] ? 'disabled' : ''}>
+                                Upgrade (${upgradesCosts.skills[skill][level]} coins)
+                            </button>` :
+                '<div class="maxed">MAXED</div>'
+            }
+                    </div>
+                `;
+    }).join('')}
+        </div>
+    `;
+}
+
+function updateChallengesList() {
+    const list = document.getElementById('challenges-list');
+    if (!list) return;
+
+    if (progressionData.dailyChallenges.length === 0) {
+        list.innerHTML = '<div style="text-align: center; padding: 20px; color: #7f8c8d;">No challenges available today!</div>';
+        return;
+    }
+
+    list.innerHTML = progressionData.dailyChallenges.map(challenge => `
+        <div class="challenge-card ${challenge.completed ? 'completed' : ''}">
+            <div class="challenge-desc">${challenge.description}</div>
+            <div class="challenge-progress">Progress: ${challenge.progress}/${challenge.target}</div>
+            <div class="challenge-reward">Reward: ${challenge.reward} coins</div>
+            ${challenge.completed ? '<div class="completed-badge">✓ COMPLETED</div>' : ''}
+        </div>
+    `).join('');
+}
+
+function unlockPiece(piece) {
+    if (progressionData.coins >= upgradesCosts.unlock[piece] && !progressionData.unlockedPieces.includes(piece)) {
+        progressionData.coins -= upgradesCosts.unlock[piece];
+        progressionData.unlockedPieces.push(piece);
+        progressionData.pieceUpgrades[piece].level = 1;
+        showNotification(`${pieceAbilities[piece].name} Unlocked!`);
+        updateUpgradesGrid();
+        updatePieceSelector();
+        saveProgressionData();
+    }
+}
+
+function upgradePiece(piece) {
+    const upgrade = progressionData.pieceUpgrades[piece];
+    const cost = upgradesCosts.upgrade[upgrade.level];
+
+    if (progressionData.coins >= cost && upgrade.level < 5) {
+        progressionData.coins -= cost;
+        upgrade.level++;
+        showNotification(`${pieceAbilities[piece].name} upgraded to Level ${upgrade.level}!`);
+        updateUpgradesGrid();
+        updatePieceSelector();
+        saveProgressionData();
+    }
+}
+
+function promotePiece(piece) {
+    if (progressionData.coins >= upgradesCosts.promote) {
+        progressionData.coins -= upgradesCosts.promote;
+        progressionData.pieceUpgrades[piece].promoted = true;
+        showNotification(`${pieceAbilities[piece].name} Promoted! Super ${pieceAbilities[piece].name}!`);
+        updateUpgradesGrid();
+        updatePieceSelector();
+        saveProgressionData();
+    }
+}
+
+function upgradeSkill(skill) {
+    const level = progressionData.skillTree[skill];
+    const cost = upgradesCosts.skills[skill][level];
+
+    if (progressionData.coins >= cost) {
+        progressionData.coins -= cost;
+        progressionData.skillTree[skill]++;
+        showNotification(`${skill} upgraded!`);
+        updateUpgradesGrid();
+        saveProgressionData();
+    }
+}
+
+function getEnhancedAbility(piece) {
+    const base = pieceAbilities[piece];
+    const upgrade = progressionData.pieceUpgrades[piece] || { level: 0, promoted: false };
+    const skills = progressionData.skillTree;
+
+    const multiplier = 1 + (upgrade.level * 0.2);
+    const reloadBonus = 1 + (skills.fasterReload * 0.15);
+
+    return {
+        ...base,
+        speed: base.speed * multiplier,
+        bulletSpeed: base.bulletSpeed * multiplier,
+        fireRate: base.fireRate / reloadBonus,
+        damage: (base.damage || 1) * (upgrade.promoted ? 2 : multiplier),
+        health: (base.health || 3) + skills.moreHealth
+    };
+}
+
+function addToLeaderboard(score, piece, difficulty) {
+    const scores = JSON.parse(localStorage.getItem('chessShooterLeaderboard') || '[]');
+    scores.push({
+        score,
+        piece,
+        difficulty,
+        date: new Date().toLocaleDateString()
+    });
+    scores.sort((a, b) => b.score - a.score);
+    localStorage.setItem('chessShooterLeaderboard', JSON.stringify(scores.slice(0, 10)));
+}
+
+// Add CSS styles
+const progressionStyles = document.createElement('style');
+progressionStyles.textContent = `
+.progression-tabs {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px;
+    background: #34495e;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.tab-btn.active, .tab-btn:hover {
+    background: #3498db;
+}
+
+.tab-content {
+    display: none;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.currency-bar {
+    background: #2c3e50;
+    color: white;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.upgrades-section, .skills-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.upgrade-card, .skill-card {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    font-size: 14px;
+    color: white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.upgrade-stats {
+    font-size: 12px;
+    color: #f1c40f;
+    margin: 8px 0;
+    text-align: left;
+    background: rgba(0,0,0,0.3);
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.skill-desc {
+    font-size: 12px;
+    color: #e74c3c;
+    margin: 8px 0;
+    background: rgba(0,0,0,0.3);
+    padding: 5px;
+    border-radius: 4px;
+}round: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.piece-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.piece-name, .skill-name {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #3498db;
+    font-size: 16px;
+}
+
+.promoted {
+    background: #f39c12;
+    color: white;
+    padding: 2px 5px;
+    border-radius: 8px;
+    font-size: 10px;
+    margin: 3px 0;
+}
+
+.upgrade-card button, .skill-card button {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+    border: 2px solid #27ae60;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 8px;
+    transition: all 0.3s;
+}
+
+.upgrade-card button:hover {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    transform: translateY(-2px);
+}
+
+.upgrade-card button:disabled, .skill-card button:disabled {
+    background: #7f8c8d;
+    border-color: #7f8c8d;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.maxed {
+    background: #f39c12;
+    color: white;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-top: 5px;
+}
+
+.challenge-card {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    border: 2px solid #e74c3c;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.challenge-card.completed {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    border-color: #27ae60;
+}
+
+.completed-badge {
+    background: linear-gradient(135deg, #f1c40f, #f39c12);
+    color: #2c3e50;
+    padding: 6px 12px;
+    border-radius: 15px;
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    text-shadow: none;
+}
+`;
+document.head.appendChild(progressionStyles);
