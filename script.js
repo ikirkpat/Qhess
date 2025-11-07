@@ -1218,6 +1218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const scenarioSection = document.querySelector('.setup-section:has(.setup-btn[data-scenario])');
         const timeSection = document.querySelector('.setup-section:has(.setup-btn[data-time])');
         const aiSection = document.getElementById('ai-section');
+        const themeSection = document.querySelector('.setup-section:has(.setup-btn[data-theme])');
 
         if (scenarioSection) {
             scenarioSection.style.display = tempGameMode.shouldShowStartingPosition() ? 'block' : 'none';
@@ -1227,6 +1228,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (aiSection) {
             aiSection.style.display = ['classic', 'zombie', 'survival'].includes(selectedGameType) ? 'block' : 'none';
+        }
+        if (themeSection) {
+            themeSection.style.display = selectedGameType === 'shooter' ? 'none' : 'block';
         }
     }
 
