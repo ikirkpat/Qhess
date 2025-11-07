@@ -1,7 +1,5 @@
 # 🎮 Qhess - The Most Unnecessarily Complex Chess Game Ever
 
-> **Warning**: This entire project was vibe-coded at 3 AM with nothing but energy drinks and questionable life choices. Proceed with caution.
-
 ## What Even Is This?
 
 Qhess started as "let's make a simple chess game" and somehow evolved into a fever dream of game modes that nobody asked for but everyone secretly wanted. It's like regular chess, but if chess went to a rave, got really into cyberpunk aesthetics, and decided to become a zombie apocalypse survivor.
@@ -158,8 +156,7 @@ Use it, abuse it, learn from it, or use it as an example of what not to do in yo
 
 ## 🙏 Acknowledgments
 
-- Energy drinks for making this possible
-- Stack Overflow for solving problems we created
+- Amazon Q for solving problems it created
 - The chess community for probably being horrified by this
 - Anyone who actually plays this game
 - The AI pieces for not achieving actual sentience (yet)
@@ -168,7 +165,7 @@ Use it, abuse it, learn from it, or use it as an example of what not to do in yo
 
 This project proves that with enough caffeine and questionable decision-making, you can turn a simple chess game into a multi-modal gaming experience that nobody asked for but somehow works.
 
-Is it good code? Probably not.
+Is it good code? Probably not. (no one has read it)
 Is it fun? Surprisingly yes.
 Would we do it again? Absolutely.
 
