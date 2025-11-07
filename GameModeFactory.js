@@ -48,8 +48,8 @@ class GameMode {
     }
 
     getTheme() {
-        return this.config.gameType === 'zombie' ? 'zombie' : 
-               this.config.gameType === 'survival' ? 'haunted' : 'classic';
+        return this.config.gameType === 'zombie' ? 'zombie' :
+            this.config.gameType === 'survival' ? 'haunted' : 'classic';
     }
 }
 

@@ -103,7 +103,7 @@ function isPawnPromotion(piece, toRow) {
 
 function showPromotionModal(isWhite) {
     const choice = prompt('Choose promotion piece:\n1 - Queen\n2 - Rook\n3 - Bishop\n4 - Knight', '1');
-    
+
     let promotedPiece;
     switch (choice) {
         case '2': promotedPiece = isWhite ? '♖' : '♜'; break;
@@ -111,13 +111,13 @@ function showPromotionModal(isWhite) {
         case '4': promotedPiece = isWhite ? '♘' : '♞'; break;
         default: promotedPiece = isWhite ? '♕' : '♛'; break;
     }
-    
+
     if (pendingPromotion) {
         gameBoard[pendingPromotion.toRow][pendingPromotion.toCol] = promotedPiece;
         gameBoard[pendingPromotion.fromRow][pendingPromotion.fromCol] = '';
         pendingPromotion = null;
         updateBoard();
-        
+
         // Continue game flow
         if (!survivalMode) {
             const opponent = currentPlayer === 'white' ? 'black' : 'white';
@@ -133,11 +133,9 @@ function showPromotionModal(isWhite) {
                     updateTurnIndicator();
                     updateTimers();
                     clearMessage();
-                    
-                    if ((selectedAIConfig === 'human-vs-ai' && currentPlayer === 'black') || selectedAIConfig === 'ai-vs-ai') {
-                        if (!gameOver && currentGameMode && currentGameMode.makeAIMove) {
-                            setTimeout(() => currentGameMode.makeAIMove(), 1000);
-                        }
+
+                    if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                        if (!gameOver) setTimeout(() => makeAIMove(), 1000);
                     }
                 }
             }
@@ -569,11 +567,11 @@ function startNewGame() {
         // Create and initialize game mode using factory
         currentGameMode = GameModeFactory.createGameMode(selectedGameType, selectedAIConfig);
         currentGameMode.initialize();
-        
+
         if (selectedGameType === 'shooter') {
             return; // Skip normal chess setup
         }
-        
+
         if (['classic', 'zombie'].includes(selectedGameType)) {
             gameBoard = scenarios[selectedScenario].map(row => [...row]);
         }
@@ -1069,7 +1067,7 @@ function handleSurvivalSquareClick(square) {
 
         const rowDiff = Math.abs(row - fromRow);
         const colDiff = Math.abs(col - fromCol);
-        
+
         if (rowDiff <= 1 && colDiff <= 1 && gameBoard[fromRow][fromCol] === '♔') {
             gameBoard[row][col] = gameBoard[fromRow][fromCol];
             gameBoard[fromRow][fromCol] = '';
@@ -1088,91 +1086,56 @@ function handleSurvivalSquareClick(square) {
     }
 }
 
-// Shooter Mode Functions
+// Shooter Mode Variables - functions moved to shooterMode.js
 let shooterMode = false;
 let shooterGame = {
-    canvas: null, ctx: null, player: { x: 400, y: 500, piece: '♔' },
-    bullets: [], enemies: [], powerups: [], score: 0, highScore: 0, gameRunning: false, keys: {}, 
-    lastEnemySpawn: 0, lastPowerupSpawn: 0, activePowers: {}
+    canvas: null, ctx: null, player: { x: 400, y: 500, piece: '♔', health: 3, maxHealth: 3 },
+    bullets: [], enemies: [], powerups: [], boss: null, score: 0, highScore: 0, gameRunning: false, keys: {},
+    lastEnemySpawn: 0, lastPowerupSpawn: 0, activePowers: {}, wave: 1, enemiesKilled: 0, combo: 0, maxCombo: 0,
+    particles: [], muzzleFlash: 0, screenShake: 0, bgOffset: 0
 };
-
-function initializeShooterMode() {
-    shooterMode = true;
-    shooterGame.highScore = localStorage.getItem('chessShooterHighScore') || 0;
-    document.getElementById('game-container').innerHTML = `
-        <div id="shooter-container">
-            <canvas id="shooter-canvas" width="800" height="600"></canvas>
-            <div id="shooter-ui">
-                <div id="shooter-score">Score: 0</div>
-                <div id="shooter-high-score">High Score: ${shooterGame.highScore}</div>
-                <div id="shooter-controls">Arrow Keys: Move | Space: Shoot</div>
-            </div>
-        </div>`;
-    
-    shooterGame.canvas = document.getElementById('shooter-canvas');
-    shooterGame.ctx = shooterGame.canvas.getContext('2d');
-    shooterGame.gameRunning = true;
-    shooterGame.score = 0;
-    shooterGame.bullets = [];
-    shooterGame.enemies = [];
-    shooterGame.lastEnemySpawn = Date.now();
-    
-    document.addEventListener('keydown', (e) => {
-        if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
-        shooterGame.keys[e.code] = true;
-        if (e.code === 'Space') {
-            if (shooterGame.activePowers.rapid) {
-                // Rapid fire mode
-                shoot();
-                setTimeout(() => shoot(), 100);
-                setTimeout(() => shoot(), 200);
-            } else {
-                shoot();
-            }
-        }
-    });
-    document.addEventListener('keyup', (e) => {
-        if (e.code.startsWith('Arrow')) e.preventDefault();
-        shooterGame.keys[e.code] = false;
-    });
-    gameLoop();
-}
 
 function shoot() {
     if (!shooterGame.gameRunning) return;
-    
+
     if (shooterGame.activePowers.spread) {
         // Spread shot - 5 bullets in arc
         for (let i = -2; i <= 2; i++) {
-            shooterGame.bullets.push({ 
-                x: shooterGame.player.x + 15, y: shooterGame.player.y, 
-                speed: 8, dx: i * 2, type: 'spread' 
+            shooterGame.bullets.push({
+                x: shooterGame.player.x + 15, y: shooterGame.player.y,
+                speed: 8, dx: i * 2, type: 'spread'
             });
         }
         shooterGame.activePowers.spread = false;
     } else if (shooterGame.activePowers.laser) {
         // Laser beam - instant hit
-        shooterGame.bullets.push({ 
-            x: shooterGame.player.x + 15, y: 0, 
-            speed: 0, width: 8, type: 'laser' 
+        shooterGame.bullets.push({
+            x: shooterGame.player.x + 15, y: 0,
+            speed: 0, width: 8, type: 'laser'
         });
         setTimeout(() => {
             shooterGame.bullets = shooterGame.bullets.filter(b => b.type !== 'laser');
         }, 200);
+    } else if (shooterGame.activePowers.homing) {
+        // Homing bullet
+        shooterGame.bullets.push({ x: shooterGame.player.x + 15, y: shooterGame.player.y, speed: 6, type: 'homing' });
     } else {
         // Normal shot
         shooterGame.bullets.push({ x: shooterGame.player.x + 15, y: shooterGame.player.y, speed: 8, type: 'normal' });
     }
-    
+
     playShootSound();
+    shooterGame.muzzleFlash = 10; // Muzzle flash duration
 }
 
 function activatePower(type) {
-    switch(type) {
+    switch (type) {
         case 'bomb':
             // Bomb - destroys all enemies on screen
             shooterGame.score += shooterGame.enemies.length * 20;
+            shooterGame.enemies.forEach(e => createParticles(e.x + 15, e.y + 15, '#ff6600', 8));
             shooterGame.enemies = [];
+            shooterGame.screenShake = 30;
             createExplosion();
             break;
         case 'spread':
@@ -1188,6 +1151,26 @@ function activatePower(type) {
         case 'laser':
             shooterGame.activePowers.laser = true;
             setTimeout(() => shooterGame.activePowers.laser = false, 3000);
+            break;
+        case 'freeze':
+            shooterGame.activePowers.freeze = true;
+            setTimeout(() => shooterGame.activePowers.freeze = false, 3000);
+            break;
+        case 'magnet':
+            shooterGame.activePowers.magnet = true;
+            setTimeout(() => shooterGame.activePowers.magnet = false, 5000);
+            break;
+        case 'double':
+            shooterGame.activePowers.double = true;
+            setTimeout(() => shooterGame.activePowers.double = false, 10000);
+            break;
+        case 'slow':
+            shooterGame.activePowers.slow = true;
+            setTimeout(() => shooterGame.activePowers.slow = false, 5000);
+            break;
+        case 'homing':
+            shooterGame.activePowers.homing = true;
+            setTimeout(() => shooterGame.activePowers.homing = false, 8000);
             break;
     }
     document.getElementById('shooter-score').textContent = `Score: ${shooterGame.score}`;
@@ -1207,47 +1190,102 @@ function createExplosion() {
 
 function gameLoop() {
     if (!shooterGame.gameRunning) return;
-    
+
     // Move player
     if (shooterGame.keys['ArrowLeft'] && shooterGame.player.x > 0) shooterGame.player.x -= 5;
     if (shooterGame.keys['ArrowRight'] && shooterGame.player.x < 750) shooterGame.player.x += 5;
     if (shooterGame.keys['ArrowUp'] && shooterGame.player.y > 0) shooterGame.player.y -= 5;
     if (shooterGame.keys['ArrowDown'] && shooterGame.player.y < 550) shooterGame.player.y += 5;
-    
-    // Update bullets
-    shooterGame.bullets = shooterGame.bullets.filter(b => { 
-        if (b.type === 'spread') {
-            b.x += b.dx;
-            b.y -= b.speed;
+
+    // Update bullets with homing and slow motion
+    const bulletSpeedMultiplier = shooterGame.activePowers.slow ? 0.5 : 1;
+    shooterGame.bullets = shooterGame.bullets.filter(b => {
+        if (b.type === 'homing' && shooterGame.enemies.length > 0) {
+            const target = shooterGame.enemies[0];
+            const dx = target.x - b.x;
+            const dy = target.y - b.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                b.x += (dx / dist) * b.speed * bulletSpeedMultiplier;
+                b.y += (dy / dist) * b.speed * bulletSpeedMultiplier;
+            }
+        } else if (b.type === 'spread') {
+            b.x += b.dx * bulletSpeedMultiplier;
+            b.y -= b.speed * bulletSpeedMultiplier;
         } else if (b.type !== 'laser') {
-            b.y -= b.speed;
+            b.y -= b.speed * bulletSpeedMultiplier;
         }
-        return b.y > -10 && b.x > -10 && b.x < 810; 
+        return b.y > -10 && b.x > -10 && b.x < 810;
     });
-    shooterGame.enemies = shooterGame.enemies.filter(e => { e.y += e.speed; return e.y < 650; });
-    
+    // Update enemies with freeze and slow motion
+    const speedMultiplier = shooterGame.activePowers.slow ? 0.5 : 1;
+    shooterGame.enemies = shooterGame.enemies.filter(e => {
+        if (!shooterGame.activePowers.freeze) {
+            updateEnemyMovement(e, speedMultiplier);
+        }
+        return e.y < 650;
+    });
+
+    // Update boss
+    if (shooterGame.boss) {
+        shooterGame.boss.x += shooterGame.boss.dx;
+        if (shooterGame.boss.x <= 0 || shooterGame.boss.x >= 700) shooterGame.boss.dx *= -1;
+    }
+
     // Spawn enemies
-    if (Date.now() - shooterGame.lastEnemySpawn > 1000) {
-        const pieces = ['♛', '♜', '♝', '♞', '♟'];
-        shooterGame.enemies.push({ x: Math.random() * 750, y: -50, piece: pieces[Math.floor(Math.random() * pieces.length)], speed: 2 + Math.random() * 3 });
+    const spawnRate = Math.max(500, 1200 - shooterGame.wave * 100);
+    if (Date.now() - shooterGame.lastEnemySpawn > spawnRate && !shooterGame.boss) {
+        spawnEnemy();
         shooterGame.lastEnemySpawn = Date.now();
     }
-    
+
+    // Spawn boss every 10 waves
+    if (shooterGame.enemiesKilled >= shooterGame.wave * 10 && !shooterGame.boss) {
+        spawnBoss();
+    }
+
     // Spawn powerups
     if (Date.now() - shooterGame.lastPowerupSpawn > 8000) {
-        const powerTypes = ['bomb', 'spread', 'rapid', 'shield', 'laser'];
-        const powerColors = ['🔥', '💥', '⚡', '🛡️', '🌟'];
+        const powerTypes = ['bomb', 'spread', 'rapid', 'shield', 'laser', 'freeze', 'magnet', 'double', 'slow', 'homing'];
+        const powerColors = ['🔥', '💥', '⚡', '🛡️', '🌟', '❄️', '🧢', '💰', '🐌', '🎯'];
         const type = powerTypes[Math.floor(Math.random() * powerTypes.length)];
-        shooterGame.powerups.push({ 
-            x: Math.random() * 750, y: -30, type: type, 
-            icon: powerColors[powerTypes.indexOf(type)], speed: 1.5 
+        shooterGame.powerups.push({
+            x: Math.random() * 750, y: -30, type: type,
+            icon: powerColors[powerTypes.indexOf(type)], speed: 1.5
         });
         shooterGame.lastPowerupSpawn = Date.now();
     }
-    
-    // Update powerups
-    shooterGame.powerups = shooterGame.powerups.filter(p => { p.y += p.speed; return p.y < 650; });
-    
+
+    // Update powerups with magnet effect
+    shooterGame.powerups = shooterGame.powerups.filter(p => {
+        if (shooterGame.activePowers.magnet) {
+            const dx = shooterGame.player.x - p.x;
+            const dy = shooterGame.player.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                p.x += (dx / dist) * 3;
+                p.y += (dy / dist) * 3;
+            }
+        } else {
+            p.y += p.speed;
+        }
+        return p.y < 650;
+    });
+
+    // Update particles
+    shooterGame.particles = shooterGame.particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        p.alpha = p.life / p.maxLife;
+        return p.life > 0;
+    });
+
+    // Update effects
+    if (shooterGame.muzzleFlash > 0) shooterGame.muzzleFlash--;
+    if (shooterGame.screenShake > 0) shooterGame.screenShake--;
+    shooterGame.bgOffset += 1;
+
     // Check bullet-enemy collisions
     shooterGame.bullets.forEach((bullet, bi) => {
         shooterGame.enemies.forEach((enemy, ei) => {
@@ -1257,31 +1295,73 @@ function gameLoop() {
             } else {
                 hit = bullet.x > enemy.x && bullet.x < enemy.x + 30 && bullet.y > enemy.y && bullet.y < enemy.y + 30;
             }
-            
+
             if (hit) {
                 if (bullet.type !== 'laser') shooterGame.bullets.splice(bi, 1);
                 shooterGame.enemies.splice(ei, 1);
-                shooterGame.score += 10;
+                shooterGame.enemiesKilled++;
+                shooterGame.combo++;
+                if (shooterGame.combo > shooterGame.maxCombo) shooterGame.maxCombo = shooterGame.combo;
+                const comboMultiplier = Math.min(Math.floor(shooterGame.combo / 5) + 1, 5);
+                const pointMultiplier = shooterGame.activePowers.double ? 2 : 1;
+                shooterGame.score += 10 * comboMultiplier * pointMultiplier;
                 playHitSound();
-                document.getElementById('shooter-score').textContent = `Score: ${shooterGame.score}`;
+                createParticles(enemy.x + 15, enemy.y + 15, '#ff6600');
+                updateUI();
             }
         });
-    });
-    
-    // Player-enemy collisions
-    shooterGame.enemies.forEach(enemy => {
-        if (shooterGame.player.x < enemy.x + 30 && shooterGame.player.x + 30 > enemy.x &&
-            shooterGame.player.y < enemy.y + 30 && shooterGame.player.y + 30 > enemy.y) {
-            if (!shooterGame.activePowers.shield) {
-                shooterGameOver();
+
+        // Check bullet-boss collisions
+        if (shooterGame.boss) {
+            let hit = false;
+            if (bullet.type === 'laser') {
+                hit = bullet.x <= shooterGame.boss.x + 60 && bullet.x + (bullet.width || 4) >= shooterGame.boss.x;
             } else {
-                // Shield absorbs hit
-                shooterGame.enemies.splice(shooterGame.enemies.indexOf(enemy), 1);
-                shooterGame.activePowers.shield = false;
+                hit = bullet.x > shooterGame.boss.x && bullet.x < shooterGame.boss.x + 60 &&
+                    bullet.y > shooterGame.boss.y && bullet.y < shooterGame.boss.y + 60;
+            }
+
+            if (hit) {
+                if (bullet.type !== 'laser') shooterGame.bullets.splice(bi, 1);
+                shooterGame.boss.health--;
+                shooterGame.combo++;
+                if (shooterGame.combo > shooterGame.maxCombo) shooterGame.maxCombo = shooterGame.combo;
+                const comboMultiplier = Math.min(Math.floor(shooterGame.combo / 5) + 1, 5);
+                const pointMultiplier = shooterGame.activePowers.double ? 2 : 1;
+                shooterGame.score += 50 * comboMultiplier * pointMultiplier;
+                playHitSound();
+
+                if (shooterGame.boss.health <= 0) {
+                    createParticles(shooterGame.boss.x + 30, shooterGame.boss.y + 30, '#ff0000', 20);
+                    shooterGame.boss = null;
+                    shooterGame.wave++;
+                    shooterGame.enemiesKilled = 0;
+                    shooterGame.score += 500;
+                    shooterGame.screenShake = 20;
+                }
+                updateUI();
             }
         }
     });
-    
+
+    // Player-enemy collisions
+    shooterGame.enemies.forEach((enemy, ei) => {
+        if (shooterGame.player.x < enemy.x + 30 && shooterGame.player.x + 30 > enemy.x &&
+            shooterGame.player.y < enemy.y + 30 && shooterGame.player.y + 30 > enemy.y) {
+            if (!shooterGame.activePowers.shield) {
+                shooterGame.player.health--;
+                shooterGame.combo = 0;
+                shooterGame.screenShake = 15;
+                if (shooterGame.player.health <= 0) {
+                    shooterGameOver();
+                    return;
+                }
+            }
+            shooterGame.enemies.splice(ei, 1);
+            if (shooterGame.activePowers.shield) shooterGame.activePowers.shield = false;
+        }
+    });
+
     // Player-powerup collisions
     shooterGame.powerups.forEach((powerup, pi) => {
         if (shooterGame.player.x < powerup.x + 30 && shooterGame.player.x + 30 > powerup.x &&
@@ -1291,48 +1371,108 @@ function gameLoop() {
             playPowerupSound();
         }
     });
-    
-    // Draw everything
+
+    // Draw everything with screen shake
     const ctx = shooterGame.ctx;
+    const shakeX = shooterGame.screenShake > 0 ? (Math.random() - 0.5) * shooterGame.screenShake : 0;
+    const shakeY = shooterGame.screenShake > 0 ? (Math.random() - 0.5) * shooterGame.screenShake : 0;
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, 800, 600);
-    
-    // Chess floor
-    for (let x = 0; x < 800; x += 50) {
-        for (let y = 0; y < 600; y += 50) {
-            ctx.fillStyle = (Math.floor(x/50) + Math.floor(y/50)) % 2 === 0 ? '#f0d9b5' : '#b58863';
+
+    // Scrolling chess floor
+    const offsetY = shooterGame.bgOffset % 100;
+    for (let x = 0; x < 850; x += 50) {
+        for (let y = -100 + offsetY; y < 650; y += 50) {
+            ctx.fillStyle = (Math.floor(x / 50) + Math.floor((y - offsetY) / 50)) % 2 === 0 ? '#f0d9b5' : '#b58863';
             ctx.fillRect(x, y, 50, 50);
         }
     }
-    
-    // Player
+
+    // Player with muzzle flash
+    if (shooterGame.muzzleFlash > 0) {
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(shooterGame.player.x + 15, shooterGame.player.y, shooterGame.muzzleFlash * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
     ctx.fillStyle = '#f1c40f';
     ctx.font = '30px Arial';
     ctx.fillText(shooterGame.player.piece, shooterGame.player.x, shooterGame.player.y + 30);
-    
+
     // Bullets
     shooterGame.bullets.forEach(b => {
         if (b.type === 'laser') {
             ctx.fillStyle = '#00ffff';
             ctx.fillRect(b.x, 0, b.width || 4, 600);
         } else {
-            ctx.fillStyle = b.type === 'spread' ? '#ff00ff' : '#e74c3c';
+            ctx.fillStyle = b.type === 'spread' ? '#ff00ff' : b.type === 'homing' ? '#00ff00' : '#e74c3c';
             ctx.fillRect(b.x, b.y, 4, 10);
         }
     });
-    
-    // Enemies
-    ctx.fillStyle = '#8e44ad';
-    shooterGame.enemies.forEach(e => ctx.fillText(e.piece, e.x, e.y + 30));
-    
+
+    // Enemies with death animation
+    ctx.font = '30px Arial';
+    shooterGame.enemies.forEach(e => {
+        if (e.dying) {
+            ctx.save();
+            ctx.translate(e.x + 15, e.y + 15);
+            ctx.rotate(e.rotation || 0);
+            ctx.globalAlpha = e.alpha || 1;
+            ctx.fillStyle = '#8e44ad';
+            ctx.fillText(e.piece, -15, 15);
+            ctx.restore();
+
+            e.rotation = (e.rotation || 0) + 0.3;
+            e.alpha = (e.alpha || 1) - 0.05;
+        } else {
+            ctx.fillStyle = '#8e44ad';
+            ctx.fillText(e.piece, e.x, e.y + 30);
+        }
+    });
+
+    // Boss
+    if (shooterGame.boss) {
+        ctx.fillStyle = '#ff0000';
+        ctx.font = '60px Arial';
+        ctx.fillText(shooterGame.boss.piece, shooterGame.boss.x, shooterGame.boss.y + 60);
+
+        // Boss health bar
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(shooterGame.boss.x, shooterGame.boss.y - 20, 60, 8);
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(shooterGame.boss.x, shooterGame.boss.y - 20, (shooterGame.boss.health / shooterGame.boss.maxHealth) * 60, 8);
+    }
+
     // Powerups
     ctx.font = '24px Arial';
     shooterGame.powerups.forEach(p => ctx.fillText(p.icon, p.x, p.y + 24));
-    
+
+    // UI Elements
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '18px Arial';
+    ctx.fillText(`Wave: ${shooterGame.wave}`, 10, 30);
+    ctx.fillText(`Combo: ${shooterGame.combo}x`, 10, 55);
+
+    // Health hearts
+    ctx.font = '20px Arial';
+    for (let i = 0; i < shooterGame.player.maxHealth; i++) {
+        if (i < shooterGame.player.health) {
+            ctx.fillStyle = '#ff0000';
+            ctx.fillText('❤️', 10 + i * 25, 80);
+        } else {
+            ctx.fillStyle = '#666666';
+            ctx.fillText('💔', 10 + i * 25, 80);
+        }
+    }
+
     // Active power indicators
     ctx.fillStyle = '#00ff00';
     ctx.font = '16px Arial';
-    let powerY = 20;
+    let powerY = 105;
     if (shooterGame.activePowers.shield) {
         ctx.fillText('🛡️ SHIELD', 10, powerY);
         powerY += 25;
@@ -1343,15 +1483,45 @@ function gameLoop() {
     }
     if (shooterGame.activePowers.laser) {
         ctx.fillText('🌟 LASER', 10, powerY);
+        powerY += 25;
     }
-    
+    if (shooterGame.activePowers.freeze) {
+        ctx.fillText('❄️ FREEZE', 10, powerY);
+        powerY += 25;
+    }
+    if (shooterGame.activePowers.magnet) {
+        ctx.fillText('🧢 MAGNET', 10, powerY);
+        powerY += 25;
+    }
+    if (shooterGame.activePowers.double) {
+        ctx.fillText('💰 DOUBLE PTS', 10, powerY);
+        powerY += 25;
+    }
+    if (shooterGame.activePowers.slow) {
+        ctx.fillText('🐌 SLOW MO', 10, powerY);
+        powerY += 25;
+    }
+    if (shooterGame.activePowers.homing) {
+        ctx.fillText('🎯 HOMING', 10, powerY);
+    }
+
+    // Particles
+    shooterGame.particles.forEach(p => {
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
     requestAnimationFrame(gameLoop);
 }
 
 function shooterGameOver() {
     shooterGame.gameRunning = false;
     playGameOverSound();
-    
+
     // Check and update high score
     let isNewHighScore = false;
     if (shooterGame.score > shooterGame.highScore) {
@@ -1359,7 +1529,7 @@ function shooterGameOver() {
         localStorage.setItem('chessShooterHighScore', shooterGame.highScore);
         isNewHighScore = true;
     }
-    
+
     // Create game over overlay
     const gameOverDiv = document.createElement('div');
     gameOverDiv.style.cssText = `
@@ -1367,7 +1537,7 @@ function shooterGameOver() {
         background: rgba(0,0,0,0.8); display: flex; flex-direction: column;
         align-items: center; justify-content: center; color: white;
     `;
-    
+
     gameOverDiv.innerHTML = `
         <h1 style="color: #e74c3c; font-size: 48px; margin: 0;">GAME OVER</h1>
         <p style="color: #f1c40f; font-size: 24px; margin: 20px 0;">Final Score: ${shooterGame.score}</p>
@@ -1382,14 +1552,14 @@ function shooterGameOver() {
             border-radius: 8px; font-size: 18px; cursor: pointer; margin: 10px;
         ">Main Menu</button>
     `;
-    
+
     document.getElementById('shooter-container').appendChild(gameOverDiv);
-    
+
     document.getElementById('restart-shooter').onclick = () => {
         gameOverDiv.remove();
         initializeShooterMode();
     };
-    
+
     document.getElementById('menu-shooter').onclick = () => {
         resetGame();
     };
@@ -1455,6 +1625,66 @@ function playPowerupSound() {
     oscillator.stop(audioContext.currentTime + 0.3);
 }
 
+function spawnEnemy() {
+    const enemyTypes = [
+        { piece: '♟', type: 'pawn', speed: 2 },
+        { piece: '♞', type: 'knight', speed: 1.5 },
+        { piece: '♝', type: 'bishop', speed: 2.5 },
+        { piece: '♜', type: 'rook', speed: 3 },
+        { piece: '♛', type: 'queen', speed: 1.8 }
+    ];
+    const enemy = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+    shooterGame.enemies.push({
+        x: Math.random() * 750, y: -50, piece: enemy.piece, type: enemy.type,
+        speed: enemy.speed + shooterGame.wave * 0.2, dx: 0, moveTimer: 0
+    });
+}
+
+function spawnBoss() {
+    shooterGame.boss = {
+        x: 350, y: 50, piece: '♚', health: 10 + shooterGame.wave * 2,
+        maxHealth: 10 + shooterGame.wave * 2, dx: 2
+    };
+}
+
+function updateEnemyMovement(enemy, speedMultiplier = 1) {
+    enemy.moveTimer += 16;
+    const speed = enemy.speed * speedMultiplier;
+    switch (enemy.type) {
+        case 'pawn':
+            enemy.y += speed;
+            break;
+        case 'knight':
+            enemy.y += speed;
+            enemy.x += Math.sin(enemy.moveTimer * 0.01) * 3 * speedMultiplier;
+            break;
+        case 'bishop':
+            enemy.y += speed * 0.7;
+            enemy.x += Math.sin(enemy.moveTimer * 0.005) * 2 * speedMultiplier;
+            break;
+        case 'rook':
+            enemy.y += speed;
+            break;
+        case 'queen':
+            enemy.y += speed;
+            enemy.x += Math.cos(enemy.moveTimer * 0.008) * 1.5 * speedMultiplier;
+            break;
+    }
+}
+
+function updateUI() {
+    document.getElementById('shooter-score').textContent = `Score: ${shooterGame.score}`;
+}
+
+function createParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        shooterGame.particles.push({
+            x: x, y: y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
+            color: color, size: Math.random() * 4 + 2, life: 30, maxLife: 30, alpha: 1
+        });
+    }
+}
+
 function createChessBoard() {
     const board = document.getElementById('chessboard');
 
@@ -1482,9 +1712,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             selectedGameType = btn.dataset.gameType;
             updateSectionVisibility();
-    
-    // Initialize visibility on page load
-    updateSectionVisibility();
+
+            // Initialize visibility on page load
+            updateSectionVisibility();
         });
     });
 
@@ -1502,7 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const scenarioSection = document.querySelector('.setup-section:has(.setup-btn[data-scenario])');
         const timeSection = document.querySelector('.setup-section:has(.setup-btn[data-time])');
         const aiSection = document.getElementById('ai-section');
-        
+
         if (scenarioSection) {
             scenarioSection.style.display = tempGameMode.shouldShowStartingPosition() ? 'block' : 'none';
         }
@@ -1551,7 +1781,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             document.body.className = selectedTheme;
         }
-        
+
         if (selectedGameType === 'shooter') {
             startNewGame();
             return;
@@ -1567,10 +1797,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.promotion-piece').forEach(btn => {
         btn.addEventListener('click', () => {
             if (!pendingPromotion) return;
-            
+
             const pieceType = btn.dataset.piece;
             const isWhite = isWhitePiece(pendingPromotion.piece);
-            
+
             let promotedPiece;
             switch (pieceType) {
                 case 'queen': promotedPiece = isWhite ? '♕' : '♛'; break;
@@ -1578,14 +1808,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'bishop': promotedPiece = isWhite ? '♗' : '♝'; break;
                 case 'knight': promotedPiece = isWhite ? '♘' : '♞'; break;
             }
-            
+
             gameBoard[pendingPromotion.toRow][pendingPromotion.toCol] = promotedPiece;
             gameBoard[pendingPromotion.fromRow][pendingPromotion.fromCol] = '';
-            
+
             hidePromotionModal();
             pendingPromotion = null;
             updateBoard();
-            
+
             // Continue game flow
             if (!survivalMode) {
                 const opponent = currentPlayer === 'white' ? 'black' : 'white';
@@ -1601,11 +1831,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateTurnIndicator();
                         updateTimers();
                         clearMessage();
-                        
-                        if ((selectedAIConfig === 'human-vs-ai' && currentPlayer === 'black') || selectedAIConfig === 'ai-vs-ai') {
-                            if (!gameOver && currentGameMode && currentGameMode.makeAIMove) {
-                                setTimeout(() => currentGameMode.makeAIMove(), 1000);
-                            }
+
+                        if ((selectedGameMode === 'ai' && currentPlayer === 'black') || selectedGameMode === 'ai-vs-ai') {
+                            if (!gameOver) setTimeout(() => makeAIMove(), 1000);
                         }
                     }
                 }
