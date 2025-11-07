@@ -757,6 +757,41 @@ function playHorrorSound() {
     oscillator2.start(audioContext.currentTime);
     oscillator1.stop(audioContext.currentTime + 2);
     oscillator2.stop(audioContext.currentTime + 2);
+
+    // Create witch cackle using noise and filtering
+    const bufferSize = audioContext.sampleRate * 2;
+    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    
+    // Generate filtered noise for cackle
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+    
+    const noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(300, audioContext.currentTime);
+    filter.Q.setValueAtTime(15, audioContext.currentTime);
+    
+    const cackleGain = audioContext.createGain();
+    
+    // Create cackle pattern with rapid on/off
+    const times = [0, 0.1, 0.15, 0.3, 0.35, 0.5, 0.55, 0.7, 0.75, 0.9, 0.95, 1.1];
+    const gains = [0, 0.1, 0, 0.12, 0, 0.08, 0, 0.1, 0, 0.06, 0, 0];
+    
+    times.forEach((time, i) => {
+        cackleGain.gain.setValueAtTime(gains[i], audioContext.currentTime + time);
+    });
+    
+    noiseSource.connect(filter);
+    filter.connect(cackleGain);
+    cackleGain.connect(audioContext.destination);
+    
+    noiseSource.start(audioContext.currentTime);
+    noiseSource.stop(audioContext.currentTime + 2);
 }
 
 function showGameOver() {
@@ -767,10 +802,30 @@ function showGameOver() {
 
     const gameOverScreen = document.createElement('div');
     gameOverScreen.className = 'game-over-screen';
+    
+    // Add background image with dark overlay
+    gameOverScreen.style.backgroundImage = 'url(image.png)';
+    gameOverScreen.style.backgroundSize = 'cover';
+    gameOverScreen.style.backgroundPosition = 'center';
+    
+    // Add dark translucent overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1;
+    `;
+    gameOverScreen.appendChild(overlay);
 
     const gameOverText = document.createElement('div');
     gameOverText.className = 'game-over-text';
     gameOverText.textContent = 'GAME OVER';
+    gameOverText.style.zIndex = '2';
+    gameOverText.style.position = 'relative';
 
     // Add blood splatters
     for (let i = 0; i < 5; i++) {
@@ -779,12 +834,15 @@ function showGameOver() {
         splatter.style.top = Math.random() * 100 + '%';
         splatter.style.left = Math.random() * 100 + '%';
         splatter.style.animationDelay = (i * 0.2) + 's';
+        splatter.style.zIndex = '3';
         gameOverScreen.appendChild(splatter);
     }
 
     const resetButton = document.createElement('button');
     resetButton.textContent = 'Try Again';
     resetButton.className = 'reset-btn';
+    resetButton.style.zIndex = '2';
+    resetButton.style.position = 'relative';
     resetButton.onclick = () => {
         document.body.removeChild(gameOverScreen);
         resetGame();
@@ -1160,6 +1218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const scenarioSection = document.querySelector('.setup-section:has(.setup-btn[data-scenario])');
         const timeSection = document.querySelector('.setup-section:has(.setup-btn[data-time])');
         const aiSection = document.getElementById('ai-section');
+        const themeSection = document.querySelector('.setup-section:has(.setup-btn[data-theme])');
 
         if (scenarioSection) {
             scenarioSection.style.display = tempGameMode.shouldShowStartingPosition() ? 'block' : 'none';
@@ -1169,6 +1228,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (aiSection) {
             aiSection.style.display = ['classic', 'zombie', 'survival'].includes(selectedGameType) ? 'block' : 'none';
+        }
+        if (themeSection) {
+            themeSection.style.display = selectedGameType === 'shooter' ? 'none' : 'block';
         }
     }
 
