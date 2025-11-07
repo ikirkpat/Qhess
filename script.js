@@ -962,7 +962,18 @@ function updateBoard() {
     squares.forEach(square => {
         const row = parseInt(square.dataset.row);
         const col = parseInt(square.dataset.col);
-        square.textContent = gameBoard[row][col];
+        const piece = gameBoard[row][col];
+        
+        // Check if there's an image URL for this piece
+        const imageUrl = window.getPieceImageUrl ? window.getPieceImageUrl(piece) : null;
+        
+        if (imageUrl) {
+            square.textContent = '';
+            square.style.backgroundImage = `url(${imageUrl})`;
+        } else {
+            square.textContent = piece;
+            square.style.backgroundImage = '';
+        }
     });
 }
 
@@ -1182,6 +1193,9 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedTheme = gameTheme;
         } else {
             document.body.className = selectedTheme;
+            if (selectedTheme === 'squirrel') {
+                SquirrelTheme.applyTheme();
+            }
         }
 
         if (selectedGameType === 'shooter') {
