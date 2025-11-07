@@ -21,7 +21,7 @@ async function playAdamsChessGame() {
   
   try {
     await integration.startGame();
-    console.log(`Game ${gameCode} started! Listening for opponent moves...`);
+    console.log(`Game started! Listening for opponent moves...`);
   } catch (error) {
     console.error('Failed to start game:', error);
   }

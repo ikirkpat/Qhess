@@ -16,7 +16,7 @@ export class AdamsChessDriver {
         }
         
         // Send move to Firebase
-        this.client.makeMoveMultiplayer(this.roomId, fromSquare, toSquare, this.chessBoard.fen());
+        this.client.makeMoveMultiplayer(this.roomId, this.chessBoard.fen(), this.chessBoard.history());
         
         return move;
     }

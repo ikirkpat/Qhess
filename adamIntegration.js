@@ -2,6 +2,7 @@ import { ChessAIClient } from './external_client.js';
 import { AdamsChessDriver } from './AdamsChessDriver.js';
 import { Chess } from 'chess.js';
 import { AI } from './AI/AI.js';
+import { RNGAI } from './AI/RNGAI.js';
 
 class AdamChessIntegration {
   constructor() {
@@ -21,9 +22,7 @@ class AdamChessIntegration {
     
     // Make first move as white
     console.log('Making first move as white...');
-    const ai = new AI();
-    const chessDriver = new AdamsChessDriver('white', this.roomCode);
-    await ai.promptTurn(chessDriver);
+    await this.generateAIMove();
     
     this.displayBoard();
     this.listenForOpponentMoves();
@@ -54,8 +53,8 @@ class AdamChessIntegration {
   }
 
   async generateAIMove() {
-    const ai = new AI();
-    const chessDriver = new AdamsChessDriver('black', this.roomCode);
+    const ai = new RNGAI();
+    const chessDriver = new AdamsChessDriver('white', this.roomCode);
     await ai.promptTurn(chessDriver);
     
     // Get the move that was made
