@@ -9,18 +9,18 @@ const rl = createInterface({
 async function playAdamsChessGame() {
   console.log('Starting Adam\'s Chess Game...');
   
-  const gameCode = await new Promise((resolve) => {
-    rl.question('Enter game code: ', (answer) => {
-      resolve(answer.trim());
-    });
-  });
+  // const gameCode = await new Promise((resolve) => {
+  //   rl.question('Enter game code: ', (answer) => {
+  //     resolve(answer.trim());
+  //   });
+  // });
   
   rl.close();
   
   const integration = new AdamChessIntegration();
   
   try {
-    await integration.startGame(gameCode);
+    await integration.startGame();
     console.log(`Game ${gameCode} started! Listening for opponent moves...`);
   } catch (error) {
     console.error('Failed to start game:', error);

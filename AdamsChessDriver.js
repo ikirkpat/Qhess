@@ -2,9 +2,9 @@ import { Chess } from 'chess.js';
 import { ChessAIClient } from './external_client.js';
 
 export class AdamsChessDriver {
-    constructor(color, gameId) {
+    constructor(color, roomId) {
         this.color = color;
-        this.gameId = gameId;
+        this.roomId = roomId;
         this.chessBoard = new Chess();
         this.client = new ChessAIClient();
     }
@@ -16,7 +16,7 @@ export class AdamsChessDriver {
         }
         
         // Send move to Firebase
-        this.client.makeMove(this.gameId, fromSquare, toSquare, this.chessBoard.fen());
+        this.client.makeMoveMultiplayer(this.roomId, fromSquare, toSquare, this.chessBoard.fen());
         
         return move;
     }

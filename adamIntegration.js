@@ -6,19 +6,31 @@ import { AI } from './AI/AI.js';
 class AdamChessIntegration {
   constructor() {
     this.client = new ChessAIClient();
-    this.gameId = null;
+    this.roomCode = null;
     this.chessBoard = new Chess();
     this.unsubscribe = null;
   }
 
-  async startGame(gameCode) {
-    this.gameId = await this.client.joinGame(gameCode, "QhessApp");
-    await this.client.startGame(this.gameId);
+  async startGame() {
+    const { gameId, roomCode } = await this.client.createMultiplayerGame("AI", true);
+    this.roomCode = roomCode;
+    console.log(`Game ${gameId} (${roomCode}) created! Share room code: ${roomCode}`);
+    
+    // Wait for opponent to join
+    await this.client.waitForGameStart(roomCode);
+    
+    // Make first move as white
+    console.log('Making first move as white...');
+    const ai = new AI();
+    const chessDriver = new AdamsChessDriver('white', this.roomCode);
+    await ai.promptTurn(chessDriver);
+    
+    this.displayBoard();
     this.listenForOpponentMoves();
   }
 
   listenForOpponentMoves() {
-    this.unsubscribe = this.client.listenForAIMove(this.gameId, (gameData) => {
+    this.unsubscribe = this.client.listenToMultiplayerGame(this.roomCode, (gameData) => {
       if (gameData.lastMove && gameData.currentTurn === 'white') {
         this.handleOpponentMove(gameData.lastMove);
       }
@@ -35,33 +47,15 @@ class AdamChessIntegration {
     }
     this.displayBoard();
     
-    // Generate AI response
-    const aiMove = await this.generateAIMove();
+    // Generate AI response - AdamsChessDriver will handle Firebase move
+    await this.generateAIMove();
     
-    if (aiMove) {
-      // Make AI move locally
-      const aiMoveResult = this.chessBoard.move(aiMove);
-      
-      console.log('\nAI moved from', aiMoveResult.from, 'to', aiMoveResult.to);
-      if (aiMoveResult.captured) {
-        console.log('Captured:', aiMoveResult.captured);
-      }
-      
-      // Send move to Firebase
-      await this.client.makeMove(
-        this.gameId, 
-        aiMove.from, 
-        aiMove.to, 
-        this.chessBoard.fen()
-      );
-      
-      this.displayBoard();
-    }
+    this.displayBoard();
   }
 
   async generateAIMove() {
     const ai = new AI();
-    const chessDriver = new AdamsChessDriver('black', this.gameId);
+    const chessDriver = new AdamsChessDriver('black', this.roomCode);
     await ai.promptTurn(chessDriver);
     
     // Get the move that was made

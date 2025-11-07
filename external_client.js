@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, onSnapshot, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, doc, setDoc, updateDoc, getDoc, onSnapshot, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { Chess } from 'chess.js';
 const firebaseConfig = {
   apiKey: "AIzaSyCQQEKBMltwpT4k1lrc2lnrnhkbMltuNw8",
@@ -13,6 +13,41 @@ export class ChessAIClient {
   constructor() {
     const app = initializeApp(firebaseConfig);
     this.db = getFirestore(app);
+  }
+  async createMultiplayerGame(playerName = "ExternalApp", playerEmail = "external@app.com", isPrivate = false, timeControl = 'none') {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let roomCode = '';
+    for (let i = 0; i < 6; i++) {
+      roomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const timeControls = {
+      'none': 0,
+      'blitz3': 180,
+      'blitz5': 300,
+      'rapid10': 600,
+      'rapid15': 900,
+      'classical30': 1800
+    };
+    const initialTime = timeControls[timeControl];
+    const gameData = {
+      roomCode,
+      whitePlayer: playerName,
+      whiteEmail: playerEmail,
+      blackPlayer: null,
+      blackEmail: null,
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      moves: [],
+      status: 'waiting',
+      isPublic: !isPrivate,
+      timeControl,
+      whiteTime: initialTime,
+      blackTime: initialTime,
+      createdAt: serverTimestamp(),
+      lastMove: serverTimestamp()
+    };
+    await setDoc(doc(this.db, 'multiplayerGames', roomCode), gameData);
+    console.log(`Multiplayer game created: ${roomCode}`);
+    return { gameId: roomCode, roomCode };
   }
   async createGame(playerName = "ExternalApp", aiColor = "black", difficulty = "master") {
     const roomCode = Array.from({ length: 6 }, () =>
@@ -33,6 +68,17 @@ export class ChessAIClient {
     console.log(`Game created: ${docRef.id} (Room: ${roomCode})`);
     return docRef.id;
   }
+  async makeMoveMultiplayer(roomCode, newFen, moves, whiteTime = null, blackTime = null) {
+    const update = {
+      fen: newFen,
+      moves: moves,
+      lastMove: new Date()
+    };
+    if (whiteTime !== null) update.whiteTime = whiteTime;
+    if (blackTime !== null) update.blackTime = blackTime;
+    await updateDoc(doc(this.db, 'multiplayerGames', roomCode), update);
+    console.log(`Move made in room ${roomCode}`);
+  }
   async makeMove(gameId, moveFrom, moveTo, newFen, promotion = null) {
     const gameDoc = await getDoc(doc(this.db, 'games', gameId));
     const game = gameDoc.data();
@@ -52,25 +98,30 @@ export class ChessAIClient {
     const gameDoc = await getDoc(doc(this.db, 'games', gameId));
     return gameDoc.data();
   }
+  async joinGameById(gameId, playerName) {
+    console.log(`Joining game: ${gameId}`);
+    const gameDoc = await getDoc(doc(this.db, 'games', gameId));
+    if (!gameDoc.exists()) {
+      throw new Error(`Game not found: ${gameId}`);
+    }
+    const gameData = gameDoc.data();
+    if (gameData.blackPlayer === 'AI') {
+      await updateDoc(doc(this.db, 'games', gameId), {
+        blackPlayer: playerName,
+        status: 'active'
+      });
+    } else if (gameData.whitePlayer === 'AI') {
+      await updateDoc(doc(this.db, 'games', gameId), {
+        whitePlayer: playerName,
+        status: 'active'
+      });
+    }
+    console.log(`Joined game: ${gameId}`);
+    return gameId;
+  }
   async joinGame(roomCode, playerName) {
     console.log(`Searching for game with room code: ${roomCode}`);
-    
-    // First, get all multiplayer games to see what's available
-    const allGamesRef = collection(this.db, 'multiplayerGames');
-    const allGamesSnapshot = await getDocs(allGamesRef);
-    console.log('\n=== ALL AVAILABLE MULTIPLAYER GAMES ===');
-    allGamesSnapshot.forEach((doc) => {
-      const data = doc.data();
-      console.log(`Game ID: ${doc.id}`);
-      console.log(`Room Code: ${data.roomCode || data.code || 'N/A'}`);
-      console.log(`White Player: ${data.whitePlayer || data.player1 || 'N/A'}`);
-      console.log(`Black Player: ${data.blackPlayer || data.player2 || 'N/A'}`);
-      console.log(`Status: ${data.status || 'N/A'}`);
-      console.log('---');
-    });
-    console.log('=== END GAMES LIST ===\n');
-    
-    const gamesRef = collection(this.db, 'multiplayerGames');
+    const gamesRef = collection(this.db, 'games');
     const q = query(gamesRef, where('roomCode', '==', roomCode));
     const snapshot = await getDocs(q);
     console.log(`Found ${snapshot.size} games`);
@@ -99,29 +150,59 @@ export class ChessAIClient {
     });
     console.log('Game started');
   }
+  listenToMultiplayerGame(roomCode, callback) {
+    return onSnapshot(doc(this.db, 'multiplayerGames', roomCode), (doc) => {
+      if (doc.exists()) {
+        callback(doc.data());
+      }
+    });
+  }
   listenForAIMove(gameId, callback) {
     return onSnapshot(doc(this.db, 'games', gameId), (doc) => {
       callback(doc.data());
+    });
+  }
+  
+  async waitForGameStart(roomCode) {
+    console.log('Waiting for opponent to join game...');
+    return new Promise((resolve) => {
+      const gamesRef = collection(this.db, 'multiplayerGames');
+      const q = query(gamesRef, where('roomCode', '==', roomCode));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const gameData = snapshot.docs[0].data();
+          console.log('Game status:', gameData.status);
+          
+          if (gameData.status === 'playing') {
+            console.log('Game is now playing! Starting...');
+            unsubscribe();
+            resolve(gameData);
+          }
+        }
+      });
     });
   }
 }
 // Example usage
 async function example() {
   const client = new ChessAIClient();
-  // Option 1: Create game (you play white, AI plays black at master level)
-  const gameId = await client.createGame("MyApp", "black", "master");
-  // Option 2: Join existing game by room code
-  // const gameId = await client.joinGame("ABC123", "MyApp");
-  // Make a move
+  // MULTIPLAYER GAME (human vs human)
+  const { gameId, roomCode } = await client.createMultiplayerGame("MyApp", "myapp@example.com", false, 'none');
+  console.log(`Room code: ${roomCode}`);
   const board = new Chess();
   board.move('e4');
-  await client.makeMove(gameId, "e2", "e4", board.fen());
-  // Listen for AI response
-  const unsubscribe = client.listenForAIMove(gameId, (gameData) => {
-    if (gameData.currentTurn === 'white') {
-      console.log('AI moved:', gameData.lastMove);
-      console.log('New position:', gameData.fen);
-    }
+  await client.makeMoveMultiplayer(roomCode, board.fen(), board.history());
+  const unsubscribe = client.listenToMultiplayerGame(roomCode, (gameData) => {
+    console.log('Game updated:', gameData);
   });
+  // AI GAME (human vs AI)
+  // const aiGameId = await client.createGame("MyApp", "black", "master");
+  // const board2 = new Chess();
+  // board2.move('e4');
+  // await client.makeMove(aiGameId, "e2", "e4", board2.fen());
+  // const unsub2 = client.listenForAIMove(aiGameId, (gameData) => {
+  //   console.log('AI moved:', gameData.lastMove);
+  // });
   // Later: unsubscribe()
 }
