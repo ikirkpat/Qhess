@@ -1,4 +1,4 @@
-class ChessDriver {
+class DomChessDriver {
     constructor(color) {
         this.color = color; // 'white' or 'black'
     }

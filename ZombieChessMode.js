@@ -23,12 +23,12 @@ class ZombieChessMode extends GameMode {
         this.aiConfig = aiConfig;
         
         if (aiConfig === 'human-vs-ai') {
-            this.chessDriver = new ChessDriver('black');
+            this.chessDriver = new DomChessDriver('black');
             this.aiPlayer = new AI();
         } else if (aiConfig === 'ai-vs-ai') {
-            this.chessDriver = new ChessDriver('black');
+            this.chessDriver = new DomChessDriver('black');
             this.aiPlayer = new AI();
-            this.whiteChessDriver = new ChessDriver('white');
+            this.whiteChessDriver = new DomChessDriver('white');
             this.whiteAI = new AI();
             setTimeout(() => this.makeAIMove(), 1000);
         }
@@ -45,12 +45,12 @@ class ZombieChessMode extends GameMode {
             let currentAI, currentInterface;
 
             if (currentPlayer === 'white') {
-                if (!this.whiteChessDriver) this.whiteChessDriver = new ChessDriver('white');
+                if (!this.whiteChessDriver) this.whiteChessDriver = new DomChessDriver('white');
                 if (!this.whiteAI) this.whiteAI = new AI();
                 currentAI = this.whiteAI;
                 currentInterface = this.whiteChessDriver;
             } else {
-                if (!this.chessDriver) this.chessDriver = new ChessDriver('black');
+                if (!this.chessDriver) this.chessDriver = new DomChessDriver('black');
                 if (!this.aiPlayer) this.aiPlayer = new AI();
                 currentAI = this.aiPlayer;
                 currentInterface = this.chessDriver;

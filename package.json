@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "firebase": "^12.5.0"
+  }
+}
