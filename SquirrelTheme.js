@@ -5,6 +5,19 @@ class SquirrelTheme {
         document.body.classList.add('squirrel');
         this.addSquirrelCSS();
         this.setupPieceImages();
+        this.addDancingSquirrel();
+    }
+    
+    static addDancingSquirrel() {
+        const squirrel = document.createElement('img');
+        squirrel.src = 'https://admin-dev.michdev.org/images/squirrel-dancing-squirrel.gif';
+        squirrel.className = 'dancing-squirrel';
+        document.body.appendChild(squirrel);
+        
+        const leftSquirrel = document.createElement('img');
+        leftSquirrel.src = 'https://i.pinimg.com/originals/b2/5e/bf/b25ebf2fa97fc8c06ddb9cd99f999f9a.gif';
+        leftSquirrel.className = 'dancing-squirrel-left';
+        document.body.appendChild(leftSquirrel);
     }
     
     static setupPieceImages() {
@@ -79,6 +92,46 @@ class SquirrelTheme {
             background-size: 80%;
             background-repeat: no-repeat;
             background-position: center;
+        }
+        
+        .dancing-squirrel {
+            position: fixed;
+            width: 240px;
+            height: 240px;
+            right: 50px;
+            top: 50%;
+            transform-origin: 150px 0;
+            animation: circularMotion 5s linear infinite;
+            z-index: 1000;
+        }
+        
+        .dancing-squirrel-left {
+            position: fixed;
+            width: 240px;
+            height: 240px;
+            left: 50px;
+            top: 50%;
+            transform-origin: -150px 0;
+            animation: circularMotionLeft 5s linear infinite;
+            z-index: 1000;
+        }
+        
+        @keyframes circularMotion {
+            from {
+                transform: translateY(-50%) rotate(0deg) translateX(150px) rotate(0deg);
+            }
+            to {
+                transform: translateY(-50%) rotate(360deg) translateX(150px) rotate(-360deg);
+            }
+        }
+        
+        @keyframes circularMotionLeft {
+            from {
+                transform: translateY(-50%) rotate(0deg) translateX(-150px) rotate(0deg);
+            }
+            to {
+                transform: translateY(-50%) rotate(360deg) translateX(-150px) rotate(-360deg);
+            }
         }
         `;
         
