@@ -379,7 +379,38 @@ h1 {
 
 /* Space Theme */
 .space {
-    background: radial-gradient(ellipse at center, #1e3c72 0%, #2a5298 50%, #000428 100%);
+    background: 
+        radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+        radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+        radial-gradient(2px 2px at 160px 30px, #fff, transparent),
+        radial-gradient(1px 1px at 200px 90px, rgba(255,255,255,0.7), transparent),
+        radial-gradient(2px 2px at 240px 50px, #eee, transparent),
+        radial-gradient(1px 1px at 280px 20px, rgba(255,255,255,0.9), transparent),
+        radial-gradient(1px 1px at 320px 100px, #fff, transparent),
+        radial-gradient(2px 2px at 360px 60px, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 400px 10px, #eee, transparent),
+        radial-gradient(2px 2px at 440px 80px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 480px 45px, #fff, transparent),
+        radial-gradient(1px 1px at 520px 95px, rgba(255,255,255,0.6), transparent),
+        radial-gradient(2px 2px at 560px 25px, #eee, transparent),
+        radial-gradient(1px 1px at 600px 75px, rgba(255,255,255,0.9), transparent),
+        radial-gradient(1px 1px at 640px 35px, #fff, transparent),
+        radial-gradient(2px 2px at 680px 85px, rgba(255,255,255,0.7), transparent),
+        radial-gradient(1px 1px at 720px 15px, #eee, transparent),
+        radial-gradient(2px 2px at 760px 65px, rgba(255,255,255,0.5), transparent),
+        conic-gradient(from 45deg at 150px 150px, transparent 0deg, rgba(138, 43, 226, 0.1) 90deg, transparent 180deg),
+        conic-gradient(from 120deg at 350px 250px, transparent 0deg, rgba(75, 0, 130, 0.15) 120deg, transparent 240deg),
+        conic-gradient(from 200deg at 550px 100px, transparent 0deg, rgba(72, 61, 139, 0.1) 80deg, transparent 160deg),
+        radial-gradient(ellipse at center, #1e3c72 0%, #2a5298 50%, #000428 100%);
+    background-size: 
+        800px 600px, 800px 600px, 800px 600px, 800px 600px, 800px 600px,
+        800px 600px, 800px 600px, 800px 600px, 800px 600px, 800px 600px,
+        800px 600px, 800px 600px, 800px 600px, 800px 600px, 800px 600px,
+        800px 600px, 800px 600px, 800px 600px, 800px 600px, 800px 600px,
+        400px 400px, 500px 500px, 600px 600px,
+        100% 100%;
 }
 
 .space #chessboard {

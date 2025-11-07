@@ -186,11 +186,12 @@ function playPieceSound(piece) {
 
 function initializeShooterMode() {
     loadProgressionData();
+    document.body.classList.add('shooter-mode');
     const gameContainer = document.getElementById('game-container');
     gameContainer.innerHTML = `
         <div id="shooter-container">
             <div id="shooter-menu">
-                <h2>Chess Shooter</h2>
+                <h1 class="chess-wars-title">CHESS WARS</h1>
                 <div class="progression-tabs">
                     <button class="tab-btn active" data-tab="play">Play</button>
                     <button class="tab-btn" data-tab="upgrades">Upgrades</button>
@@ -306,6 +307,16 @@ function startShooterGame() {
     shooterGame.powerups = [];
     shooterGame.lastPowerupSpawn = Date.now();
     shooterGame.activePowers = {};
+    shooterGame.backgroundLasers = [];
+    shooterGame.stars = [];
+    shooterGame.titleScreen = true;
+    shooterGame.titleAlpha = 1;
+
+    // Initialize background effects
+    initializeSpaceEffects();
+
+    // Show title screen first
+    showTitleScreen();
 
     progressionData.stats.gamesPlayed++;
     updateChallengeProgress('piece', progressionData.currentPiece);
@@ -427,6 +438,9 @@ function updateGame() {
         return p.life > 0;
     });
 
+    // Update space effects
+    updateSpaceEffects();
+
     // Update screen shake
     if (shooterGame.screenShake > 0) {
         shooterGame.screenShake--;
@@ -512,8 +526,8 @@ function checkCollisions() {
     // Bullet-enemy collisions
     shooterGame.bullets.forEach((bullet, bulletIndex) => {
         shooterGame.enemies.forEach((enemy, enemyIndex) => {
-            if (bullet.x > enemy.x && bullet.x < enemy.x + 30 &&
-                bullet.y > enemy.y && bullet.y < enemy.y + 30) {
+            if (bullet.x > enemy.x && bullet.x < enemy.x + 36 &&
+                bullet.y > enemy.y && bullet.y < enemy.y + 36) {
                 shooterGame.bullets.splice(bulletIndex, 1);
                 shooterGame.enemies.splice(enemyIndex, 1);
                 const points = shooterGame.activePowers.doublePoints ? 20 : 10;
@@ -549,8 +563,8 @@ function checkCollisions() {
 
     // Player-powerup collisions
     shooterGame.powerups.forEach((powerup, index) => {
-        if (shooterGame.player.x < powerup.x + 20 && shooterGame.player.x + 30 > powerup.x &&
-            shooterGame.player.y < powerup.y + 20 && shooterGame.player.y + 30 > powerup.y) {
+        if (shooterGame.player.x < powerup.x + 20 && shooterGame.player.x + 40 > powerup.x &&
+            shooterGame.player.y < powerup.y + 20 && shooterGame.player.y + 40 > powerup.y) {
             shooterGame.powerups.splice(index, 1);
             activatePowerup(powerup.type);
         }
@@ -559,8 +573,8 @@ function checkCollisions() {
     // Player-enemy collisions
     for (let i = shooterGame.enemies.length - 1; i >= 0; i--) {
         const enemy = shooterGame.enemies[i];
-        if (shooterGame.player.x < enemy.x + 30 && shooterGame.player.x + 30 > enemy.x &&
-            shooterGame.player.y < enemy.y + 30 && shooterGame.player.y + 30 > enemy.y) {
+        if (shooterGame.player.x < enemy.x + 36 && shooterGame.player.x + 40 > enemy.x &&
+            shooterGame.player.y < enemy.y + 36 && shooterGame.player.y + 40 > enemy.y) {
 
             shooterGame.lives--;
             shooterGame.enemies.splice(i, 1);
@@ -575,8 +589,8 @@ function checkCollisions() {
     }
 
     // Player-boss collisions
-    if (shooterGame.boss && shooterGame.player.x < shooterGame.boss.x + 60 && shooterGame.player.x + 30 > shooterGame.boss.x &&
-        shooterGame.player.y < shooterGame.boss.y + 60 && shooterGame.player.y + 30 > shooterGame.boss.y) {
+    if (shooterGame.boss && shooterGame.player.x < shooterGame.boss.x + 60 && shooterGame.player.x + 40 > shooterGame.boss.x &&
+        shooterGame.player.y < shooterGame.boss.y + 60 && shooterGame.player.y + 40 > shooterGame.boss.y) {
         shooterGame.lives--;
         if (shooterGame.lives <= 0) {
             shooterGameOver();
@@ -599,8 +613,17 @@ function drawGame() {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, 800, 600);
 
+    // Draw space effects
+    drawSpaceEffects();
+
     // Draw chess floor pattern
     drawChessFloor();
+
+    // Draw title screen if active
+    if (shooterGame.titleScreen) {
+        drawTitleScreen();
+        return;
+    }
 
     // Draw player with animations and effects
     shooterGame.player.animTime += 0.1;
@@ -634,9 +657,9 @@ function drawGame() {
     }
 
     ctx.fillStyle = playerColor;
-    ctx.font = '30px Arial';
+    ctx.font = '40px Arial Bold';
     ctx.textAlign = 'center';
-    ctx.fillText(shooterGame.player.piece, 0, 5);
+    ctx.fillText(shooterGame.player.piece, 0, 8);
 
     ctx.restore();
 
@@ -671,7 +694,7 @@ function drawGame() {
 
     // Draw enemies with animations
     const enemyColor = getThemeEnemyColor(shooterGame.currentTheme);
-    ctx.font = '30px Arial';
+    ctx.font = '36px Arial';
     shooterGame.enemies.forEach((enemy, i) => {
         ctx.save();
         ctx.translate(enemy.x + 15, enemy.y + 15);
@@ -683,7 +706,7 @@ function drawGame() {
         // Enhanced glow for better visibility
         ctx.shadowColor = enemyColor;
         ctx.shadowBlur = shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie' ? 15 : 8;
-        
+
         // Add dark outline for better contrast
         if (shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie') {
             ctx.strokeStyle = '#000000';
@@ -703,11 +726,11 @@ function drawGame() {
     if (shooterGame.boss) {
         const bossColor = getThemeBossColor(shooterGame.currentTheme);
         ctx.save();
-        
+
         // Enhanced glow for boss
         ctx.shadowColor = bossColor;
         ctx.shadowBlur = 20;
-        
+
         // Add dark outline for better contrast
         if (shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie') {
             ctx.strokeStyle = '#000000';
@@ -716,12 +739,12 @@ function drawGame() {
             ctx.textAlign = 'left';
             ctx.strokeText(shooterGame.boss.piece, shooterGame.boss.x, shooterGame.boss.y + 60);
         }
-        
+
         ctx.fillStyle = bossColor;
         ctx.font = '60px Arial';
         ctx.textAlign = 'left';
         ctx.fillText(shooterGame.boss.piece, shooterGame.boss.x, shooterGame.boss.y + 60);
-        
+
         ctx.restore();
 
         // Boss health bar with better visibility
@@ -730,7 +753,7 @@ function drawGame() {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
         ctx.strokeRect(200, 20, 400, 20);
-        
+
         const healthBarColor = getThemeBossColor(shooterGame.currentTheme);
         ctx.fillStyle = healthBarColor;
         ctx.fillRect(200, 20, (shooterGame.boss.health / shooterGame.boss.maxHealth) * 400, 20);
@@ -748,58 +771,29 @@ function drawGame() {
 }
 
 function getThemeBackground(theme) {
-    switch (theme) {
-        case 'cyberpunk': return '#0a0a1a';
-        case 'neon': return '#001122';
-        case 'space': return '#1a1a2e';
-        case 'haunted': return '#1a0000';
-        case 'zombie': return '#1a4d1a';
-        default: return '#2c3e50';
-    }
+    // Always use retro space background in shooter mode
+    return '#0a0a1a';
 }
 
 function getThemePlayerColor(theme) {
-    switch (theme) {
-        case 'cyberpunk': return '#ff00ff';
-        case 'neon': return '#ffff00';
-        case 'space': return '#ffffff';
-        case 'haunted': return '#ffffff'; // White for visibility on red background
-        case 'zombie': return '#ffffff'; // White for visibility on green background
-        default: return '#f1c40f';
-    }
+    // Always use white for maximum contrast against checkerboard
+    return '#ffffff';
 }
 
 function getThemeBulletColor(theme) {
-    switch (theme) {
-        case 'cyberpunk': return '#ff00ff';
-        case 'neon': return '#00ffff';
-        case 'space': return '#ffffff';
-        case 'haunted': return '#ffff00'; // Yellow for visibility
-        case 'zombie': return '#ffff00'; // Yellow for visibility
-        default: return '#e74c3c';
-    }
+    // Bright retro bullet colors
+    return '#ffffff';
 }
 
 function getThemeBossColor(theme) {
-    switch (theme) {
-        case 'cyberpunk': return '#ff0080';
-        case 'neon': return '#ff8000';
-        case 'space': return '#ff6b6b';
-        case 'haunted': return '#ffff00'; // Yellow for visibility on red background
-        case 'zombie': return '#ff0080'; // Magenta for visibility on green background
-        default: return '#ff0000';
-    }
+    // Menacing red boss color
+    return '#ff0000';
 }
 
 function getThemeEnemyColor(theme) {
-    switch (theme) {
-        case 'cyberpunk': return '#00ffff';
-        case 'neon': return '#ff00ff';
-        case 'space': return '#87ceeb';
-        case 'haunted': return '#ffffff'; // White for visibility on red background
-        case 'zombie': return '#ffffff'; // White for visibility on green background
-        default: return '#8e44ad';
-    }
+    // Retro enemy colors that change with waves
+    const retroEnemyColors = ['#ff0080', '#00ffff', '#ffff00', '#ff8000', '#8000ff'];
+    return retroEnemyColors[(shooterGame.currentWave + 2) % retroEnemyColors.length];
 }
 
 function drawChessFloor() {
@@ -821,20 +815,15 @@ function drawChessFloor() {
 }
 
 function getThemeColors(theme) {
-    switch (theme) {
-        case 'cyberpunk':
-            return { light: '#ff00ff', dark: '#000000' };
-        case 'neon':
-            return { light: '#00ffff', dark: '#0000ff' };
-        case 'space':
-            return { light: '#ffffff', dark: '#000080' };
-        case 'haunted':
-            return { light: '#ff0000', dark: '#800000' };
-        case 'zombie':
-            return { light: '#00ff00', dark: '#008000' };
-        default:
-            return { light: '#f0d9b5', dark: '#b58863' };
-    }
+    // Retro chess floor colors that change with waves
+    const retroFloorThemes = [
+        { light: '#ff0080', dark: '#000000' },
+        { light: '#00ffff', dark: '#000080' },
+        { light: '#ffff00', dark: '#800080' },
+        { light: '#ff8000', dark: '#000040' },
+        { light: '#8000ff', dark: '#004000' }
+    ];
+    return retroFloorThemes[shooterGame.currentWave % retroFloorThemes.length];
 }
 
 function changeTheme() {
@@ -842,7 +831,6 @@ function changeTheme() {
     if (wave !== shooterGame.currentWave) {
         shooterGame.currentWave = wave;
         shooterGame.currentTheme = waveThemes[(wave - 1) % waveThemes.length];
-        document.body.className = shooterGame.currentTheme;
 
         // Increase scroll speed with each wave
         shooterGame.scrollSpeed = Math.min(1 + (wave - 1) * 0.3, 4); // Cap at 4px per frame
@@ -1034,8 +1022,7 @@ function shooterGameOver() {
 
     saveProgressionData();
     playGameOverSound();
-    playVoiceAnnouncement('Game over');
-
+    playVoiceAnnouncement('CHECKMATE');
     document.addEventListener('keydown', gameOverHandler);
 }
 
@@ -1050,7 +1037,7 @@ function drawGameOver() {
     ctx.fillStyle = '#e74c3c';
     ctx.font = '48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('GAME OVER', 400, 200);
+    ctx.fillText('CHECKMATE', 400, 200);
 
     ctx.fillStyle = '#f1c40f';
     ctx.font = '24px Arial';
@@ -1081,6 +1068,7 @@ function gameOverHandler(e) {
 }
 
 function returnToMainMenu() {
+    document.body.classList.remove('shooter-mode');
     // Return to the main chess game setup screen
     if (typeof resetGame === 'function') {
         resetGame();
@@ -1092,8 +1080,8 @@ function returnToMainMenu() {
 }
 
 function gameLoop() {
-    if (shooterGame.gameRunning) {
-        updateGame();
+    if (shooterGame.titleScreen || shooterGame.gameRunning) {
+        if (!shooterGame.titleScreen) updateGame();
         drawGame();
         requestAnimationFrame(gameLoop);
     } else if (shooterGame.gameOver) {
@@ -1591,6 +1579,142 @@ function addToLeaderboard(score, piece, difficulty) {
     localStorage.setItem('chessShooterLeaderboard', JSON.stringify(scores.slice(0, 10)));
 }
 
+function showTitleScreen() {
+    shooterGame.gameRunning = false;
+    shooterGame.titleScreen = true;
+    shooterGame.titleAlpha = 1;
+
+    // Start title fade after 2 seconds
+    setTimeout(() => {
+        const fadeInterval = setInterval(() => {
+            shooterGame.titleAlpha -= 0.02;
+            if (shooterGame.titleAlpha <= 0) {
+                clearInterval(fadeInterval);
+                shooterGame.titleScreen = false;
+                shooterGame.gameRunning = true;
+            }
+        }, 50);
+    }, 2000);
+}
+
+function drawTitleScreen() {
+    const ctx = shooterGame.ctx;
+
+    // Draw title with futuristic effect
+    ctx.save();
+    ctx.globalAlpha = shooterGame.titleAlpha;
+
+    // Background glow for readability
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 200, 800, 200);
+
+    // Main title outline for readability
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 6;
+    ctx.font = '900 72px "Orbitron", monospace';
+    ctx.textAlign = 'center';
+    ctx.strokeText('CHESS WARS', 400, 300);
+
+    // Main title with glow
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#00ffff';
+    ctx.fillText('CHESS WARS', 400, 300);
+
+    // Subtitle outline
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.font = '700 24px "Orbitron", monospace';
+    ctx.strokeText('PREPARE FOR BATTLE', 400, 350);
+
+    // Subtitle with glow
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#ffff00';
+    ctx.fillText('PREPARE FOR BATTLE', 400, 350);
+
+    ctx.restore();
+}
+
+// Space Effects Functions
+function initializeSpaceEffects() {
+    // Create background stars
+    for (let i = 0; i < 50; i++) {
+        shooterGame.stars.push({
+            x: Math.random() * 800,
+            y: Math.random() * 600,
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 2 + 0.5,
+            twinkle: Math.random() * Math.PI * 2
+        });
+    }
+}
+
+function updateSpaceEffects() {
+    // Update stars
+    shooterGame.stars.forEach(star => {
+        star.y += star.speed;
+        star.twinkle += 0.1;
+        if (star.y > 600) {
+            star.y = -10;
+            star.x = Math.random() * 800;
+        }
+    });
+
+    // Update background lasers
+    shooterGame.backgroundLasers = shooterGame.backgroundLasers.filter(laser => {
+        laser.y += laser.speed;
+        laser.life--;
+        return laser.life > 0 && laser.y < 650;
+    });
+
+    // Spawn new background lasers occasionally
+    if (Math.random() < 0.05) {
+        shooterGame.backgroundLasers.push({
+            x: Math.random() * 800,
+            y: -20,
+            speed: Math.random() * 4 + 3,
+            width: Math.random() * 4 + 2,
+            color: getRandomLaserColor(),
+            life: 150,
+            maxLife: 150
+        });
+    }
+}
+
+function drawSpaceEffects() {
+    const ctx = shooterGame.ctx;
+
+    // Draw stars
+    ctx.save();
+    shooterGame.stars.forEach(star => {
+        const alpha = 0.7 + Math.sin(star.twinkle) * 0.3;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 3;
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+    });
+    ctx.restore();
+
+    // Draw background lasers
+    ctx.save();
+    shooterGame.backgroundLasers.forEach(laser => {
+        const alpha = laser.life / laser.maxLife;
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.shadowColor = laser.color;
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = laser.color;
+        ctx.fillRect(laser.x, laser.y, laser.width, 40);
+    });
+    ctx.restore();
+}
+
+function getRandomLaserColor() {
+    const colors = ['#ff0080', '#00ffff', '#ffff00', '#ff8000', '#8000ff'];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
 // Add CSS styles
 const progressionStyles = document.createElement('style');
 progressionStyles.textContent = `
@@ -1602,15 +1726,19 @@ progressionStyles.textContent = `
 .tab-btn {
     flex: 1;
     padding: 8px;
-    background: #34495e;
-    color: white;
-    border: none;
+    background: linear-gradient(135deg, #ff0080, #8000ff);
+    color: #00ffff;
+    border: 2px solid #00ffff;
     cursor: pointer;
     font-size: 12px;
+    font-family: 'Orbitron', monospace;
+    text-shadow: 0 0 5px #00ffff;
 }
 
 .tab-btn.active, .tab-btn:hover {
-    background: #3498db;
+    background: linear-gradient(135deg, #00ffff, #ff0080);
+    color: #000000;
+    text-shadow: 0 0 5px #ffffff;
 }
 
 .tab-content {
@@ -1624,8 +1752,9 @@ progressionStyles.textContent = `
 }
 
 .currency-bar {
-    background: #2c3e50;
-    color: white;
+    background: linear-gradient(135deg, #000000, #8000ff);
+    color: #00ffff;
+    border: 2px solid #ff0080;
     padding: 8px;
     margin-bottom: 10px;
     border-radius: 4px;
@@ -1633,6 +1762,8 @@ progressionStyles.textContent = `
     gap: 15px;
     font-size: 12px;
     font-weight: bold;
+    font-family: 'Orbitron', monospace;
+    text-shadow: 0 0 5px #00ffff;
 }
 
 .upgrades-section, .skills-section {
@@ -1643,24 +1774,28 @@ progressionStyles.textContent = `
 }
 
 .upgrade-card, .skill-card {
-    background: linear-gradient(135deg, #2c3e50, #34495e);
-    border: 2px solid #3498db;
+    background: linear-gradient(135deg, #000000, #ff0080);
+    border: 2px solid #00ffff;
     border-radius: 8px;
     padding: 15px;
     text-align: center;
     font-size: 14px;
-    color: white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    color: #00ffff;
+    font-family: 'Orbitron', monospace;
+    box-shadow: 0 0 15px #ff0080;
+    text-shadow: 0 0 3px #00ffff;
 }
 
 .upgrade-stats {
     font-size: 12px;
-    color: #f1c40f;
+    color: #00ffff;
     margin: 8px 0;
     text-align: left;
-    background: rgba(0,0,0,0.3);
+    background: rgba(255,0,128,0.2);
+    border: 1px solid #ff0080;
     padding: 5px;
     border-radius: 4px;
+    text-shadow: 0 0 3px #00ffff;
 }
 
 .skill-desc {
@@ -1687,8 +1822,9 @@ progressionStyles.textContent = `
 .piece-name, .skill-name {
     font-weight: bold;
     margin-bottom: 8px;
-    color: #3498db;
+    color: #ffff00;
     font-size: 16px;
+    text-shadow: 0 0 5px #ffff00;
 }
 
 .promoted {
@@ -1701,16 +1837,18 @@ progressionStyles.textContent = `
 }
 
 .upgrade-card button, .skill-card button {
-    background: linear-gradient(135deg, #27ae60, #2ecc71);
-    color: white;
-    border: 2px solid #27ae60;
+    background: linear-gradient(135deg, #ff0080, #ffff00);
+    color: #000000;
+    border: 2px solid #00ffff;
     padding: 8px 12px;
     border-radius: 5px;
     cursor: pointer;
     font-size: 12px;
     font-weight: bold;
+    font-family: 'Orbitron', monospace;
     margin-top: 8px;
     transition: all 0.3s;
+    text-shadow: none;
 }
 
 .upgrade-card button:hover {
@@ -1735,14 +1873,16 @@ progressionStyles.textContent = `
 }
 
 .challenge-card {
-    background: linear-gradient(135deg, #2c3e50, #34495e);
-    border: 2px solid #e74c3c;
+    background: linear-gradient(135deg, #000000, #8000ff);
+    border: 2px solid #ff0080;
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 12px;
     font-size: 14px;
-    color: white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    color: #00ffff;
+    font-family: 'Orbitron', monospace;
+    box-shadow: 0 0 15px #8000ff;
+    text-shadow: 0 0 3px #00ffff;
 }
 
 .challenge-card.completed {
@@ -1751,15 +1891,117 @@ progressionStyles.textContent = `
 }
 
 .completed-badge {
-    background: linear-gradient(135deg, #f1c40f, #f39c12);
-    color: #2c3e50;
+    background: linear-gradient(135deg, #ffff00, #ff0080);
+    color: #000000;
+    border: 2px solid #00ffff;
     padding: 6px 12px;
     border-radius: 15px;
     display: inline-block;
     margin-top: 8px;
     font-size: 12px;
     font-weight: bold;
+    font-family: 'Orbitron', monospace;
     text-shadow: none;
+    box-shadow: 0 0 10px #ffff00;
+}
+
+.chess-wars-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 48px;
+    font-weight: 900;
+    text-align: center;
+    color: #00ffff;
+    text-shadow: 2px 2px 4px #000000, 0 0 15px #00ffff, 0 0 25px #ff0080;
+    margin: 20px 0;
+    letter-spacing: 4px;
+    animation: retroGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes retroGlow {
+    from {
+        filter: drop-shadow(0 0 10px #ff0080) drop-shadow(0 0 20px #00ffff);
+    }
+    to {
+        filter: drop-shadow(0 0 25px #ff0080) drop-shadow(0 0 35px #00ffff);
+    }
+}
+
+body.shooter-mode {
+    background: radial-gradient(ellipse at 20% 50%, #1a0033 0%, #000011 30%, #000000 60%, #0a0a2a 100%),
+                radial-gradient(ellipse at 80% 20%, #2a1a4a 0%, transparent 50%),
+                radial-gradient(ellipse at 40% 80%, #1a2a4a 0%, transparent 50%);
+    position: relative;
+    overflow: hidden;
+}
+
+body.shooter-mode::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(2px 2px at 20px 30px, #ffffff, transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 90px 40px, #ffffff, transparent),
+        radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+        radial-gradient(2px 2px at 160px 30px, #ffffff, transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: starfield 20s linear infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+body.shooter-mode::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(45deg, transparent 40%, rgba(255,0,128,0.1) 50%, transparent 60%),
+        linear-gradient(-45deg, transparent 40%, rgba(0,255,255,0.1) 50%, transparent 60%);
+    animation: laserSweep 8s linear infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes starfield {
+    from { transform: translateY(0px); }
+    to { transform: translateY(-100px); }
+}
+
+@keyframes laserSweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+#shooter-container {
+    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(26,0,51,0.9), rgba(0,0,0,0.8));
+    border: 3px solid #ff0080;
+    border-radius: 10px;
+    box-shadow: 0 0 30px #ff0080;
+}
+
+#start-shooter {
+    background: linear-gradient(135deg, #ff0080, #ffff00);
+    color: #000000;
+    border: 3px solid #00ffff;
+    font-family: 'Orbitron', monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 0 15px #ff0080;
+    transition: all 0.3s;
+}
+
+#start-shooter:hover {
+    background: linear-gradient(135deg, #00ffff, #ff0080);
+    box-shadow: 0 0 25px #00ffff;
+    transform: scale(1.05);
 }
 `;
 document.head.appendChild(progressionStyles);
