@@ -1038,14 +1038,29 @@ function updateBoard() {
 function updateCapturedPieces() {
     const whiteJail = document.querySelector('#captured-white .pieces-jail');
     const blackJail = document.querySelector('#captured-black .pieces-jail');
+    const isSquirrelTheme = document.body.classList.contains('squirrel');
 
-    whiteJail.innerHTML = capturedWhite.map(piece =>
-        `<div class="captured-piece">${piece}</div>`
-    ).join('');
+    whiteJail.innerHTML = capturedWhite.map(piece => {
+        if (isSquirrelTheme) {
+            return `<div class="captured-piece"><img src="https://live.staticflickr.com/1221/1253635716_2e379d3499_z.jpg" style="width: 30px; height: 30px;"></div>`;
+        }
+        const imageUrl = window.getPieceImageUrl ? window.getPieceImageUrl(piece) : null;
+        if (imageUrl) {
+            return `<div class="captured-piece"><img src="${imageUrl}" style="width: 30px; height: 30px;"></div>`;
+        }
+        return `<div class="captured-piece">${piece}</div>`;
+    }).join('');
 
-    blackJail.innerHTML = capturedBlack.map(piece =>
-        `<div class="captured-piece">${piece}</div>`
-    ).join('');
+    blackJail.innerHTML = capturedBlack.map(piece => {
+        if (isSquirrelTheme) {
+            return `<div class="captured-piece"><img src="https://live.staticflickr.com/1221/1253635716_2e379d3499_z.jpg" style="width: 30px; height: 30px;"></div>`;
+        }
+        const imageUrl = window.getPieceImageUrl ? window.getPieceImageUrl(piece) : null;
+        if (imageUrl) {
+            return `<div class="captured-piece"><img src="${imageUrl}" style="width: 30px; height: 30px;"></div>`;
+        }
+        return `<div class="captured-piece">${piece}</div>`;
+    }).join('');
 }
 
 function showMessage(text) {
