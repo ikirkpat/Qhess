@@ -819,7 +819,7 @@ function getThemeColors(theme) {
     const retroFloorThemes = [
         { light: '#ff0080', dark: '#000000' },
         { light: '#00ffff', dark: '#000080' },
-        { light: '#ffff00', dark: '#800080' },
+        { light: '#717151ff', dark: '#800051ff' },
         { light: '#ff8000', dark: '#000040' },
         { light: '#8000ff', dark: '#004000' }
     ];
