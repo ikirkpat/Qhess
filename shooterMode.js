@@ -625,6 +625,14 @@ function drawGame() {
         shooterGame.muzzleFlash--;
     }
 
+    // Add dark outline for better contrast in problematic themes
+    if (shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie') {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'center';
+        ctx.strokeText(shooterGame.player.piece, 0, 5);
+    }
+
     ctx.fillStyle = playerColor;
     ctx.font = '30px Arial';
     ctx.textAlign = 'center';
@@ -672,10 +680,16 @@ function drawGame() {
         const rotation = (Date.now() * 0.002 + i) % (Math.PI * 2);
         ctx.rotate(rotation * 0.1);
 
-        // Dynamic lighting glow
-        if (shooterGame.currentTheme === 'neon' || shooterGame.currentTheme === 'cyberpunk') {
-            ctx.shadowColor = enemyColor;
-            ctx.shadowBlur = 8;
+        // Enhanced glow for better visibility
+        ctx.shadowColor = enemyColor;
+        ctx.shadowBlur = shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie' ? 15 : 8;
+        
+        // Add dark outline for better contrast
+        if (shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie') {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.textAlign = 'center';
+            ctx.strokeText(enemy.piece, 0, 5);
         }
 
         ctx.fillStyle = enemyColor;
@@ -687,14 +701,38 @@ function drawGame() {
 
     // Draw boss
     if (shooterGame.boss) {
-        ctx.fillStyle = '#ff0000';
+        const bossColor = getThemeBossColor(shooterGame.currentTheme);
+        ctx.save();
+        
+        // Enhanced glow for boss
+        ctx.shadowColor = bossColor;
+        ctx.shadowBlur = 20;
+        
+        // Add dark outline for better contrast
+        if (shooterGame.currentTheme === 'haunted' || shooterGame.currentTheme === 'zombie') {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.font = '60px Arial';
+            ctx.textAlign = 'left';
+            ctx.strokeText(shooterGame.boss.piece, shooterGame.boss.x, shooterGame.boss.y + 60);
+        }
+        
+        ctx.fillStyle = bossColor;
         ctx.font = '60px Arial';
+        ctx.textAlign = 'left';
         ctx.fillText(shooterGame.boss.piece, shooterGame.boss.x, shooterGame.boss.y + 60);
+        
+        ctx.restore();
 
-        // Boss health bar
+        // Boss health bar with better visibility
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillRect(200, 20, 400, 20);
-        ctx.fillStyle = '#ff0000';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(200, 20, 400, 20);
+        
+        const healthBarColor = getThemeBossColor(shooterGame.currentTheme);
+        ctx.fillStyle = healthBarColor;
         ctx.fillRect(200, 20, (shooterGame.boss.health / shooterGame.boss.maxHealth) * 400, 20);
     }
 
@@ -725,8 +763,8 @@ function getThemePlayerColor(theme) {
         case 'cyberpunk': return '#ff00ff';
         case 'neon': return '#ffff00';
         case 'space': return '#ffffff';
-        case 'haunted': return '#ffaa00';
-        case 'zombie': return '#ffff00';
+        case 'haunted': return '#ffffff'; // White for visibility on red background
+        case 'zombie': return '#ffffff'; // White for visibility on green background
         default: return '#f1c40f';
     }
 }
@@ -736,9 +774,20 @@ function getThemeBulletColor(theme) {
         case 'cyberpunk': return '#ff00ff';
         case 'neon': return '#00ffff';
         case 'space': return '#ffffff';
-        case 'haunted': return '#ff4444';
-        case 'zombie': return '#ff1493';
+        case 'haunted': return '#ffff00'; // Yellow for visibility
+        case 'zombie': return '#ffff00'; // Yellow for visibility
         default: return '#e74c3c';
+    }
+}
+
+function getThemeBossColor(theme) {
+    switch (theme) {
+        case 'cyberpunk': return '#ff0080';
+        case 'neon': return '#ff8000';
+        case 'space': return '#ff6b6b';
+        case 'haunted': return '#ffff00'; // Yellow for visibility on red background
+        case 'zombie': return '#ff0080'; // Magenta for visibility on green background
+        default: return '#ff0000';
     }
 }
 
@@ -747,8 +796,8 @@ function getThemeEnemyColor(theme) {
         case 'cyberpunk': return '#00ffff';
         case 'neon': return '#ff00ff';
         case 'space': return '#87ceeb';
-        case 'haunted': return '#8b0000';
-        case 'zombie': return '#ff1493';
+        case 'haunted': return '#ffffff'; // White for visibility on red background
+        case 'zombie': return '#ffffff'; // White for visibility on green background
         default: return '#8e44ad';
     }
 }
